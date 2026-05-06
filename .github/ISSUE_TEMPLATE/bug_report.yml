@@ -1,0 +1,37 @@
+name: Bug report
+description: Report something broken or behaving unexpectedly
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: A clear and concise description of what went wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: scope
+    attributes:
+      label: Affected area
+      placeholder: "docs | bicep | powershell-azurecli | configs | workflows | other"
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "OS, PowerShell version, Azure CLI version, etc."

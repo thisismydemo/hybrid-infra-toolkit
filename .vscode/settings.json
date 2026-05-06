@@ -1,0 +1,27 @@
+{
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "editor.formatOnSave": true,
+  "editor.rulers": [120],
+  "powershell.codeFormatting.preset": "OTBS",
+  "powershell.codeFormatting.useCorrectCasing": true,
+  "[bicep]": {
+    "editor.tabSize": 2
+  },
+  "[yaml]": {
+    "editor.tabSize": 2
+  },
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.formatOnSave": false
+  },
+  "files.associations": {
+    "*.bicep": "bicep",
+    "*.bicepparam": "bicep"
+  },
+  "search.exclude": {
+    "**/site": true,
+    "**/.venv": true
+  }
+}

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://thisismydemo.github.io/hybrid-infra-toolkit/
+    about: Project documentation site

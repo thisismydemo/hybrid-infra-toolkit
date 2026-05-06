@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "ms-azuretools.vscode-bicep",
+    "ms-vscode.powershell",
+    "redhat.vscode-yaml",
+    "github.vscode-github-actions",
+    "davidanson.vscode-markdownlint",
+    "yzhang.markdown-all-in-one",
+    "ms-azuretools.vscode-azureresourcegroups"
+  ]
+}

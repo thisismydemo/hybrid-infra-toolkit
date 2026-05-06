@@ -1,0 +1,2 @@
+# Local-only Claude settings (do not commit if you put secrets here)
+settings.local.json

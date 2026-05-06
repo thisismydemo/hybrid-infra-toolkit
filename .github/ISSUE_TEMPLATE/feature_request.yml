@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a new capability or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What is the use case? What's currently hard or impossible?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: input
+    id: scope
+    attributes:
+      label: Affected area
+      placeholder: "docs | bicep | powershell-azurecli | configs | workflows | other"
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

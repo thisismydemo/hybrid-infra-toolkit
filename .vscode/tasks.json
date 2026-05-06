@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "docs: serve",
+      "type": "shell",
+      "command": "mkdocs serve",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "docs: build (strict)",
+      "type": "shell",
+      "command": "mkdocs build --strict",
+      "problemMatcher": []
+    }
+  ]
+}
