@@ -17,7 +17,7 @@ This planning document exists to track how the repository should evolve and what
 - public docs URL target: `https://www.thisismydemo.cloud/hybrid-infra-toolkit`
 - GitHub Pages publish URL: `https://thisismydemo.github.io/hybrid-infra-toolkit/`
 - docs stack: MkDocs for now
-- existing reference source: `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo`
+- this repository is standalone — no upstream source is required
 
 ## Positioning
 
@@ -42,8 +42,8 @@ What exists right now:
 
 What does not exist yet:
 
-- the full migrated reference implementation
-- the workflow chain migrated from `mms_2026_hybrid_demo`
+- a self-hosted runner bootstrap (Phase 0.5)
+- a first end-to-end deployable scenario (Phase 1)
 - actual toolchain implementations beyond the current placeholders and planning baseline
 
 ## Platform Direction
@@ -134,30 +134,11 @@ Design rules:
 - Terraform, DSC, Ansible, and ARM templates are planned categories until implemented and validated
 - toolchain parity is a roadmap goal, not an initial requirement
 
-## Source Inputs And Migration Candidates
+## Source Inputs
 
-### Current Source Paths
+This repository is built standalone. External code is not assumed or required.
 
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\bicep`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\config`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\docs`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\common`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\deploy`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\configure`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\nested-vms`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\demo`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\manual-recovery`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\validate`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-00-preflight.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-01-deploy-azure.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-02-bootstrap-host.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-02b-postbootstrap.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-03-deploy-nested-vms.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-04-configure-cluster.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-05-configure-wac-vmode.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-06-configure-scvmm.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-07-demo-reset.yml`
-- `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-08-validate.yml`
+If a reference implementation is brought in later (see Phase 1), it will be done as an explicit decision recorded here, not implied. Until that happens, all code in `src/` is to be authored fresh against the configuration model in `configs/variables/variables.yml`.
 
 ## Planned Repository Structure
 
@@ -196,24 +177,6 @@ hybrid-infra-toolkit/
 	└── workflows/
 ```
 
-## Migration Mapping
-
-| Source | Target | Action | Notes |
-|---|---|---|---|
-| `hyperv-cluster-demo/README.md` | `docs/reference/` and `examples/hyperv-cluster-reference/README.md` | split and adapt | separate public docs from implementation-specific notes |
-| `hyperv-cluster-demo/bicep/*.bicep` | `examples/hyperv-cluster-reference/deployments/bicep/` then `src/deployments/bicep/` as reusable pieces emerge | move first, extract later | preserve working reference before modularization |
-| `hyperv-cluster-demo/bicep/*.json` | not migrated by default | leave behind or regenerate | treat as generated artifacts unless explicitly versioned |
-| `hyperv-cluster-demo/config/variables.yml` | `examples/hyperv-cluster-reference/config/variables.yml` | move first | later split into reusable profiles and schema-backed values |
-| `hyperv-cluster-demo/docs/*.md` | `docs/reference/hyperv-cluster/` | rewrite into MkDocs | preserve technical content, rework navigation |
-| `hyperv-cluster-demo/scripts/common/HVLab.Automation.psm1` | `src/platform/powershell/modules/` | promote early | reusable foundation in the current implementation |
-| `hyperv-cluster-demo/scripts/deploy/*.ps1` | `examples/hyperv-cluster-reference/scripts/deploy/` and later `src/deployments/powershell-azurecli/` where reusable | move first, extract later | keep current host bootstrap working while shared logic is identified |
-| `hyperv-cluster-demo/scripts/configure/*.ps1` | `examples/hyperv-cluster-reference/scripts/configure/` and later `src/deployments/powershell-azurecli/` where reusable | move first, extract later | cluster, AD, WAC, and SCVMM setup need staged modularization |
-| `hyperv-cluster-demo/scripts/nested-vms/*.ps1` | `examples/hyperv-cluster-reference/scripts/nested-vms/` and later `src/deployments/powershell-azurecli/` where reusable | move first, extract later | later refactor into target-aware role deployment logic |
-| `hyperv-cluster-demo/scripts/demo/*.ps1` | `examples/hyperv-cluster-reference/scripts/demo/` | move first | remains reference-scenario specific |
-| `hyperv-cluster-demo/scripts/manual-recovery/*.ps1` | `examples/hyperv-cluster-reference/scripts/manual-recovery/` | move first | keep available until new operational model exists |
-| `hyperv-cluster-demo/scripts/validate/Invoke-HVLabPreflight.ps1` | `src/platform/validators/` | promote early | reuse as the first repo-wide validation gate |
-| `.github/workflows/hvlab-*.yml` | `.github/workflows/` | migrate in phases | update paths, names, secrets, and repo-specific assumptions |
-
 ## Phased Plan
 
 ### Phase 0. Bootstrap The Repo
@@ -223,12 +186,53 @@ hybrid-infra-toolkit/
 - create the planning baseline
 - create the planned `src/deployments` categories without claiming toolchain parity
 
-### Phase 1. Move A Reference Implementation
+### Phase 0.5. Bootstrap The Automation Runner
 
-- copy the current `hyperv-cluster-demo` implementation into `examples/hyperv-cluster-reference`
-- move selected technical documentation into public reference docs
-- migrate workflow files into the new repo and update path references
-- validate that the migrated reference implementation still passes preflight from the new repo
+The repository drives deployments through GitHub Actions. Most workflows are designed to run on a self-hosted runner that lives inside the target environment. That runner cannot be assumed to exist. Phase 0.5 is the chicken-and-egg solver.
+
+Goals:
+
+- a GitHub-hosted runner can deploy the minimum Azure footprint required to host a self-hosted runner
+- a small "bootstrap host" VM is created via Bicep and registered as a self-hosted runner for this repository
+- after Phase 0.5, all subsequent workflows can target `runs-on: [self-hosted, <label>]`
+
+Scope:
+
+- `src/deployments/bicep/bootstrap/` — minimal Bicep for: resource group, network, NSG, Key Vault access permissions, bootstrap host VM, managed identity
+- Custom Script Extension or `az vm run-command` step that:
+  - installs the GitHub Actions runner on the bootstrap host
+  - registers the runner against this repository with a token pulled from Key Vault
+  - configures the runner as a Windows service
+- `.github/workflows/bootstrap-runner.yml` — GitHub-hosted job that runs the Bicep deployment and the runner-install step
+- secrets required (pre-staged in Key Vault):
+  - `bootstrap-host-admin-password`
+  - `github-runner-registration-token`
+- managed identity on the bootstrap host gets `Key Vault Secrets User` on the target Key Vault
+
+Exit criteria:
+
+- workflow `bootstrap-runner.yml` runs to green from a clean subscription
+- runner appears as `Idle` under repo settings → Actions → Runners
+- a trivial test workflow with `runs-on: [self-hosted, <label>]` runs to green
+
+### Phase 1. First Reference Implementation
+
+Phase 1 produces the first end-to-end working scenario in this repository.
+
+Decision required before Phase 1 starts: where does the implementation come from?
+
+- Option A — fresh build: author the first scenario directly under `src/deployments/bicep/` and `src/deployments/powershell-azurecli/`, no copy from any other repository. Slowest, cleanest, no inherited assumptions.
+- Option B — copy as reference only: bring an existing working scenario into `examples/<scenario-name>/` as a frozen, read-only reference. Real platform code is still authored fresh in `src/`, but the example is available to learn from.
+- Option C — copy as the working implementation: bring an existing working scenario directly into `src/deployments/bicep/` and `src/deployments/powershell-azurecli/`, then evolve in place. Fastest path to a deployable demo, but inherits the source's assumptions.
+
+Decision: **TBD** — recorded here once made.
+
+Common goals regardless of option:
+
+- one named scenario produces a deployable environment from this repository alone
+- the scenario consumes `configs/variables/variables.yml`
+- the scenario uses the Phase 0.5 self-hosted runner for any host-internal work
+- public documentation for the scenario lives under `docs/demos/<scenario>/`
 
 ### Phase 2. Extract Reusable Platform Code
 
@@ -267,11 +271,11 @@ hybrid-infra-toolkit/
 
 ## Working Backlog
 
-1. Copy the current implementation into `examples/hyperv-cluster-reference`.
-2. Copy and re-home the existing Hybrid demo material needed for near-term sessions into public reference or demos docs where appropriate.
-3. Migrate `Invoke-HVLabPreflight.ps1` and the related GitHub workflow gates.
-4. Decide which Bicep JSON files are source artifacts versus generated output.
-5. Establish the `src/deployments` categories for Bicep, Terraform, PowerShell or Azure CLI, DSC, Ansible, and ARM.
-6. Create the first manifest draft for target, cluster, storage, identity, and management.
-7. Start renaming reusable components away from `hvlab`-specific naming where that improves portability.
-8. Build out `docs/demos/` for session-ready scenarios based on the toolkit.
+1. Decide the Phase 1 source option (A fresh build, B copy as reference only, C copy as working implementation) and record the decision in the Phase 1 section.
+2. Author the Phase 0.5 bootstrap-runner Bicep and workflow.
+3. Pre-stage required Key Vault secrets for the bootstrap runner.
+4. Define the first scenario name and put a placeholder under `docs/demos/<scenario>/`.
+5. Draft the first concrete `configs/variables/variables.yml` for the chosen scenario.
+6. Build the first deployment entrypoint under `src/deployments/bicep/`.
+7. Build the first preflight validator under `src/platform/validators/`.
+8. Add toolchain parity work to the backlog only after the first scenario is green.
