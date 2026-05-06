@@ -1,0 +1,34 @@
+site_name: Hybrid Infrastructure Toolkit
+site_description: Planning and documentation for the Hybrid Infrastructure Toolkit platform.
+site_url: https://www.thisismydemo.cloud/hybrid-infra-toolkit/
+repo_name: thisismydemo/hybrid-infra-toolkit
+repo_url: https://github.com/thisismydemo/hybrid-infra-toolkit
+docs_dir: docs
+use_directory_urls: true
+
+theme:
+  name: mkdocs
+
+nav:
+  - Home: index.md
+  - Project:
+    - About: project/about.md
+    - Roadmap: project/roadmap.md
+    - Changelog: project/changelog.md
+    - Open Source: project/open-source.md
+    - Contributing: project/contributing.md
+  - Standards:
+    - Engineering Standards: standards/engineering-standards.md
+  - Design:
+    - Deployment And Implementation: design/deployment-and-implementation.md
+    - CI And CD Automation: design/ci-cd-automation.md
+  - Planning:
+      - Migration And Roadmap: planning/migration-roadmap.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - fenced_code
+  - tables
+  - toc:
+      permalink: true
