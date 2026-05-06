@@ -7,11 +7,25 @@ The internal planning document focuses narrowly on reaching feature parity with 
 ## Status
 
 - **Phase 0 — Repo bootstrap:** complete
-- **Phase 0.5 — GitHub Actions runner bootstrap:** in progress
-- **Phase 1 — Land the Hyper-V cluster lab into this repository:** in progress
+- **Phase 1 — Land the Hyper-V cluster lab into this repository:** in progress (the self-hosted runner is installed on the cluster host as part of host bootstrap; same shape as the source repo)
 - **Beyond parity:** see below
 
 ## Beyond Parity
+
+### Generic CI Runner Bootstrap (Needs ADR)
+
+The current shape installs the runner on the cluster host VM. That is fine for a single Azure-hosted lab and matches the source implementation. It is not a long-term design.
+
+A standalone, environment-aware, standards-driven runner bootstrap is required before the toolkit can support targets beyond Azure VMs. Open design questions to be captured in an ADR under `docs/design/adr/`:
+
+- Where does the runner live for each deployment target: Azure VM, nested Hyper-V on another hypervisor, physical hardware?
+- Is the runner a dedicated host, a sidecar VM, or co-resident with the workload host?
+- How is `ci_provider` (GitHub / GitLab / Azure DevOps) selected from `configs/variables/variables.yml` and how does the install path branch?
+- How is runner registration credential lifecycle handled (rotation, scope: repo / org / enterprise)?
+- What is the CAF-aligned naming for runner-related resources (resource group, VM, managed identity, NSG)?
+- How does this interact with private networking, firewalls, and outbound restrictions in customer environments?
+
+This must be designed before any of the items below ship.
 
 ### Extract Reusable Platform Code
 
@@ -68,10 +82,14 @@ The Bicep, host VM, and managed identity are the same across providers. Only the
 
 ### Identity Modes
 
-- `existing-domain` for hybrid-integrated scenarios (current parity work)
-- `built-in-domain` as the default portable mode
-- `custom-domain` after end-to-end bootstrap is parameterized
-- workgroup mode if needed later
+The toolkit must support multiple identity paths so demo authors can pick what fits their environment. None of these is a “lab isolation” feature — they are deployment options for the same demo infrastructure.
+
+- **`existing-domain`** — join the demo to an Active Directory domain the user already runs. No new DCs are deployed. (Current parity work uses a variant of this against the nested `azrl.mgmt` forest.)
+- **`default-domain`** — a canned, opinionated AD built by the toolkit with sensible defaults (forest name, OU layout, demo accounts, DNS). Zero customization required from the user. This is the portable default for people who don’t care about identity specifics.
+- **`custom-domain`** — same shape as `default-domain` but the user supplies their own forest name, NetBIOS name, OU layout, admin account names, and any pre-seeded demo accounts. Built from the default template, customized via `configs/variables/variables.yml`.
+- **workgroup** — no domain at all, considered later if a scenario needs it.
+
+Identity mode selection lives in `configs/variables/variables.yml` and drives which deploy/configure scripts run.
 
 ### Management Plane Options
 
@@ -84,6 +102,26 @@ Management roles in scope across modes: domain controllers, DNS, Windows Admin C
 ### Azure Local Overlay
 
 Longer term the toolkit may support a lab-oriented Azure Local mode. Guardrail: Azure Local is a scenario overlay, not the only product identity.
+
+### Demo Prefix Option
+
+All resource names, tags, and identifiers in the parity implementation currently hardcode `mms_2026`, `mms26`, and `hvlab` strings. Part 2 introduces a `demo_prefix` value in `configs/variables/variables.yml` that drives every generated name through the CAF naming convention.
+
+- `demo_prefix` is the workload token in `<type>-<workload>-<instance>-<region>-<seq>`.
+- Default value ships with the toolkit but is fully overridable.
+- All `mms_2026` / `mms26` / `hvlab` literals are removed from variables, Bicep, scripts, and workflows and replaced with prefix-driven names.
+- Workflow file names (`hvlab-*.yml`) are renamed to a neutral, prefix-agnostic scheme.
+
+This enables the same toolkit to deploy multiple independent demo instances side-by-side without name collisions.
+
+### Rename And De-hvlab
+
+Independent of (but related to) the demo prefix work:
+
+- rename `HVLab.Automation.psm1` to a toolkit-neutral module name
+- rename `Invoke-HVLabPreflight.ps1` to a scenario-neutral preflight
+- remove `hvlab-host` runner label in favor of a label derived from `demo_prefix`
+- remove all `hvlab` and `mms_2026` references from documentation
 
 ### Documentation And Versioning
 
