@@ -188,7 +188,29 @@ hybrid-infra-toolkit/
 
 ### Phase 0.5. Bootstrap The Automation Runner
 
-The repository drives deployments through GitHub Actions. Most workflows are designed to run on a self-hosted runner that lives inside the target environment. That runner cannot be assumed to exist. Phase 0.5 is the chicken-and-egg solver.
+Deployments in this repository run on a self-hosted CI runner that lives inside the target environment. That runner cannot be assumed to exist. Phase 0.5 is the chicken-and-egg solver.
+
+#### CI Provider Abstraction
+
+The runner-bootstrap pattern is intentionally written so the same Bicep, the same install logic, and the same target host VM can register against any of the supported CI providers.
+
+Out of the box:
+
+- **GitHub Actions** is the default and the only implementation built in Phase 0.5.
+
+Planned (later phases, same pattern):
+
+- **GitLab CI** — register the host as a GitLab Runner with a runner registration token. Bicep, host, and identity are unchanged. Only the install + register step differs.
+- **Azure DevOps Pipelines** — register the host as an Azure Pipelines self-hosted agent in an agent pool with a PAT or workload identity. Same Bicep, same host, different install step.
+
+Design rules:
+
+- runner registration credentials are always pulled from Key Vault, never inlined
+- the install step is a pluggable script keyed off a `ci_provider` value in `configs/variables/variables.yml` (`github` | `gitlab` | `azure_devops`)
+- the host VM is generic Windows Server; it is not specialized for any one provider
+- the platform layer (`src/platform/`) does not import provider-specific assumptions; only the install step under `src/deployments/powershell-azurecli/bootstrap/` is provider-aware
+
+#### GitHub Actions Bootstrap (the only one built in Phase 0.5)
 
 Goals:
 
@@ -199,10 +221,7 @@ Goals:
 Scope:
 
 - `src/deployments/bicep/bootstrap/` — minimal Bicep for: resource group, network, NSG, Key Vault access permissions, bootstrap host VM, managed identity
-- Custom Script Extension or `az vm run-command` step that:
-  - installs the GitHub Actions runner on the bootstrap host
-  - registers the runner against this repository with a token pulled from Key Vault
-  - configures the runner as a Windows service
+- `src/deployments/powershell-azurecli/bootstrap/install-runner-github.ps1` — installs the GitHub Actions runner, registers against this repository with a token pulled from Key Vault, configures the runner as a Windows service
 - `.github/workflows/bootstrap-runner.yml` — GitHub-hosted job that runs the Bicep deployment and the runner-install step
 - secrets required (pre-staged in Key Vault):
   - `bootstrap-host-admin-password`
@@ -215,19 +234,43 @@ Exit criteria:
 - runner appears as `Idle` under repo settings → Actions → Runners
 - a trivial test workflow with `runs-on: [self-hosted, <label>]` runs to green
 
-### Phase 1. First Reference Implementation
+#### GitLab and Azure DevOps Bootstraps (planned)
+
+When these land:
+
+- `src/deployments/powershell-azurecli/bootstrap/install-runner-gitlab.ps1` and a parallel pipeline definition under `.gitlab-ci.yml`
+- `src/deployments/powershell-azurecli/bootstrap/install-runner-azuredevops.ps1` and a parallel pipeline definition under `azure-pipelines.yml`
+- secret name conventions documented per provider, all stored in Key Vault
+- documentation page under `docs/standards/` explaining how to switch `ci_provider` and what credentials each requires
+
+### Phase 1. First Working Implementation
 
 Phase 1 produces the first end-to-end working scenario in this repository.
 
-Decision required before Phase 1 starts: where does the implementation come from?
+#### Decision
 
-- Option A — fresh build: author the first scenario directly under `src/deployments/bicep/` and `src/deployments/powershell-azurecli/`, no copy from any other repository. Slowest, cleanest, no inherited assumptions.
-- Option B — copy as reference only: bring an existing working scenario into `examples/<scenario-name>/` as a frozen, read-only reference. Real platform code is still authored fresh in `src/`, but the example is available to learn from.
-- Option C — copy as the working implementation: bring an existing working scenario directly into `src/deployments/bicep/` and `src/deployments/powershell-azurecli/`, then evolve in place. Fastest path to a deployable demo, but inherits the source's assumptions.
+**Option C (selected).** The existing nested Hyper-V cluster lab implementation is brought into this repository as part of the platform code, not as a frozen example. It lands in `src/`, paths are rewritten to this repository's layout, and it evolves in place from there.
 
-Decision: **TBD** — recorded here once made.
+Rejected:
 
-Common goals regardless of option:
+- Option A (fresh build) — too slow given a working implementation already exists
+- Option B (copy as frozen reference) — wrong long-term home; this repo should own the code
+
+#### Phase 1 Steps (Option C)
+
+1. Land the working implementation into `src/`:
+   - Bicep → `src/deployments/bicep/`
+   - PowerShell deploy/configure/nested-vms/demo/manual-recovery scripts → `src/deployments/powershell-azurecli/`
+   - shared automation module → `src/platform/powershell/modules/`
+   - preflight validator → `src/platform/validators/`
+   - workflows → `.github/workflows/`
+   - source `variables.yml` → `configs/variables/variables.yml` (replaces the placeholder)
+2. Rewire internal paths inside the copied files to the new repo layout. Workflow `runs-on`, secret names, and runner labels stay the same on first pass.
+3. Re-target workflow GitHub references from the source repository to this repository.
+4. First green run from this repository: preflight + Azure deploy workflow.
+5. Defer all renaming, abstraction, and CAF normalization to Phase 2. Goal is a green deploy from this repo, nothing more.
+
+Common goals regardless of source option:
 
 - one named scenario produces a deployable environment from this repository alone
 - the scenario consumes `configs/variables/variables.yml`
