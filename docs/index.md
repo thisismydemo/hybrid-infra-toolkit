@@ -10,6 +10,7 @@ The near-term goal is to migrate the working reference implementation into this 
 - GitHub repository: `thisismydemo/hybrid-infra-toolkit`
 - docs path: `https://www.thisismydemo.cloud/hybrid-infra-toolkit`
 - documentation stack: MkDocs for now
+- GitHub Pages publish URL: `https://thisismydemo.github.io/hybrid-infra-toolkit/`
 
 ## What Happens Next
 
@@ -17,6 +18,12 @@ The near-term goal is to migrate the working reference implementation into this 
 - reorganize reusable code into `src/platform`
 - use `src/deployments` for separate Bicep, Terraform, PowerShell or Azure CLI, DSC, Ansible, and ARM paths
 - publish migration, roadmap, and future schema decisions through this docs site
+
+## Publishing Notes
+
+- GitHub Pages is configured for this repository
+- the GitHub Pages URL is the first live publish target
+- publishing under `thisismydemo.cloud/hybrid-infra-toolkit` still requires website routing outside this repository
 
 ## Planning
 
