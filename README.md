@@ -1,18 +1,28 @@
 # Hybrid Infrastructure Toolkit
 
-Hybrid Infrastructure Toolkit is a new platform project for building configurable, repeatable hybrid infrastructure labs and reference environments.
+Hybrid Infrastructure Toolkit is a platform project for building configurable, repeatable hybrid infrastructure labs, reference environments, and future demo scenarios.
 
-Current status:
+The project is being shaped as a reusable foundation for hybrid infrastructure work across multiple deployment targets, deployment categories, identity models, storage approaches, and management patterns.
 
-- repository initialized
-- documentation stack set to MkDocs for now
-- migration and platform planning documented before code is moved
-- source skeleton created under `src/`
-- full reference implementation not migrated yet
+## What This Project Is For
+
+- defining a consistent platform model for hybrid infrastructure labs
+- supporting repeatable deployments across Azure, nested virtualization, and physical hardware scenarios
+- separating reusable platform code from demo-specific or scenario-specific content
+- documenting standards, design decisions, and future demo guidance in one place
+- aligning architecture and implementation choices with Microsoft CAF and Well-Architected guidance where applicable
+
+## Current State
+
+- public documentation is published from MkDocs
+- internal repo-management planning lives outside the public docs tree
+- source areas have been prepared under `src/`
+- deployment categories have been planned for Bicep, Terraform, PowerShell or Azure CLI, DSC, Ansible, and ARM templates
+- full reference implementations will be brought in selectively as needed
 
 ## Documentation
 
-The documentation site is planned to publish under:
+Public documentation is intended to live at:
 
 - `https://www.thisismydemo.cloud/hybrid-infra-toolkit`
 
@@ -27,6 +37,14 @@ Important note:
 - GitHub Pages can publish this repository directly, but it does not by itself make the docs available at `https://thisismydemo.cloud/hybrid-infra-toolkit`
 - that custom path still requires your main website or edge routing layer to forward or proxy `/hybrid-infra-toolkit` to the published GitHub Pages site
 
+## Public Documentation Sections
+
+- `docs/index.md` for the main project landing page
+- `docs/demos/` for future demo and session content
+- `docs/project/` for roadmap, changelog, contribution, and project-facing information
+- `docs/standards/` for engineering and operational standards
+- `docs/design/` for deployment, implementation, and automation design guidance
+
 Local docs commands:
 
 ```powershell
@@ -35,12 +53,18 @@ mkdocs serve
 mkdocs build
 ```
 
-## Current Planning Focus
+## Repository Structure
 
-- define the platform model for configurable, repeatable hybrid infrastructure labs
-- use existing repositories only as source material and reference input where useful
-- introduce a configuration-driven model for targets, identity, storage, management, and scenario overlays
-- support multiple deployment categories under `src/deployments/`
+- `docs/` contains the public documentation site content
+- `planning/` contains internal repository planning and migration notes
+- `src/` contains shared platform code and deployment-category source areas
+- `configs/` contains early configuration artifacts and future shared configuration inputs
+
+## Internal Planning
+
+Repository planning and migration planning live in `planning/planning.md`.
+
+That file is intentionally kept outside `docs/` so internal repo-management material is not published as part of the public documentation site.
 
 ## Planned Source Layout
 
@@ -52,4 +76,4 @@ mkdocs build
 - `src/deployments/arm`
 - `src/platform`
 
-See `docs/planning/migration-roadmap.md` for the current migration and platform plan.
+See `planning/planning.md` for the current repository planning file.

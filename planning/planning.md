@@ -1,17 +1,23 @@
-# Migration And Platform Roadmap
+# Planning
 
-This document is the working plan for building Hybrid Infrastructure Toolkit as a new platform project and for selectively bringing in useful reference material, migration inputs, and reusable implementation pieces from existing repositories when appropriate.
+This document is the internal planning file for Hybrid Infrastructure Toolkit.
+
+This file is for repository planning, migration planning, working assumptions, and internal implementation direction. It is not intended to be part of the public documentation site.
 
 ## Purpose
 
-This repository should become the long-term home for the platform effort.
+Hybrid Infrastructure Toolkit is a new platform project for building configurable, repeatable hybrid infrastructure labs and reference environments.
 
-The migration needs to preserve what already works while creating room for:
+This planning document exists to track how the repository should evolve and what inputs from other repositories may be reused or migrated.
 
-- broader deployment target support
-- repeatable environment definitions
-- reusable platform modules
-- MkDocs-based documentation under `thisismydemo.cloud`
+## Current Working Decisions
+
+- solution name: `Hybrid Infrastructure Toolkit`
+- GitHub repository: `https://github.com/thisismydemo/hybrid-infra-toolkit`
+- public docs URL target: `https://www.thisismydemo.cloud/hybrid-infra-toolkit`
+- GitHub Pages publish URL: `https://thisismydemo.github.io/hybrid-infra-toolkit/`
+- docs stack: MkDocs for now
+- existing reference source: `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo`
 
 ## Positioning
 
@@ -19,41 +25,28 @@ Hybrid Infrastructure Toolkit is not positioned as a rename or successor brand f
 
 Instead:
 
-- it is a new project with its own product identity
-- existing repos are inputs, references, and possible migration sources
-- conference-specific material should not define the long-term platform identity
-
-## Current Working Decisions
-
-- solution name: `Hybrid Infrastructure Toolkit`
-- GitHub repository: `https://github.com/thisismydemo/hybrid-infra-toolkit`
-- docs URL: `https://www.thisismydemo.cloud/hybrid-infra-toolkit`
-- docs stack: MkDocs for now
-- existing reference source: `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo`
+- it is a new project with its own identity
+- existing repositories are inputs, references, and possible migration sources
+- conference-specific content should not define the long-term platform identity
 
 ## Current Repo State
 
-What exists in the new repo right now:
+What exists right now:
 
 - MkDocs documentation scaffold
-- migration and platform planning docs
+- project, standards, and design documentation
+- public demos documentation area under `docs/demos`
 - `configs/variables/variables.yml` as an early config artifact
+- initial `src/` layout for deployment categories and shared platform code
+- GitHub Pages workflow for public docs publishing
 
 What does not exist yet:
 
-- the full migrated source implementation from `hyperv-cluster-demo`
+- the full migrated reference implementation
 - the workflow chain migrated from `mms_2026_hybrid_demo`
-- the per-tool deployment implementations beyond planning placeholders
+- actual toolchain implementations beyond the current placeholders and planning baseline
 
-Current conclusion:
-
-- the docs are moved into the new repo baseline
-- the source files are not fully moved yet
-- the repo now needs an explicit `src/` layout so future code has a stable home
-
-## Platform Capability Direction
-
-The platform needs to support the following configuration and roadmap areas.
+## Platform Direction
 
 ### Cluster Shape
 
@@ -123,7 +116,7 @@ Guardrail:
 
 ### Deployment Toolchain Categories
 
-The repository should be prepared to support multiple deployment toolchains without requiring them to be fully implemented now.
+The repository should be prepared to support multiple deployment toolchains.
 
 Planned categories:
 
@@ -134,40 +127,14 @@ Planned categories:
 - `ansible`
 - `arm`
 
-Design rules for toolchain support:
+Design rules:
 
-- all toolchains should map to the same platform concepts and environment manifest
-- Bicep and PowerShell or Azure CLI should remain the first operational implementations because they are closest to the current working source
-- Terraform, DSC, Ansible, and ARM templates should be planned as parallel deployment paths, not as ad hoc one-off folders
-- toolchain parity is a roadmap goal, not a phase 1 requirement
-- reference scenarios should be reusable across toolchains wherever possible
+- all toolchains should map to the same platform concepts and environment model
+- Bicep and PowerShell or Azure CLI remain the first operational baselines
+- Terraform, DSC, Ansible, and ARM templates are planned categories until implemented and validated
+- toolchain parity is a roadmap goal, not an initial requirement
 
-## MkDocs Documentation Direction
-
-Documentation will be hosted from this repository using MkDocs for now.
-
-Initial doc responsibilities:
-
-- platform overview
-- migration plan
-- reference implementation docs
-- target profiles and configuration guidance
-- roadmap and design decisions
-
-Suggested long-term docs sections:
-
-- overview
-- getting started
-- planning
-- reference implementation
-- profiles
-- schema
-- operations
-- roadmap
-
-## Source Inventory To Migrate
-
-The current source implementation includes more than the single `hyperv-cluster-demo` folder. Some critical automation lives in the parent repository workflow layer.
+## Source Inputs And Migration Candidates
 
 ### Current Source Paths
 
@@ -192,30 +159,24 @@ The current source implementation includes more than the single `hyperv-cluster-
 - `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-07-demo-reset.yml`
 - `E:\git\mms_2026_hybrid_demo\.github\workflows\hvlab-08-validate.yml`
 
-## Proposed Target Repository Structure
+## Planned Repository Structure
 
 ```text
 hybrid-infra-toolkit/
 ├── README.md
 ├── mkdocs.yml
+├── planning/
+│   └── planning.md
 ├── configs/
 │   └── variables/
 ├── docs/
 │   ├── index.md
-│   ├── planning/
-│   │   └── migration-roadmap.md
-│   ├── reference/
-│   ├── profiles/
-│   ├── schema/
-│   └── operations/
+│   ├── demos/
+│   ├── project/
+│   ├── standards/
+│   └── design/
 ├── examples/
 │   └── hyperv-cluster-reference/
-│       ├── deployments/
-│       │   ├── bicep/
-│       │   └── powershell-azurecli/
-│       ├── config/
-│       ├── docs/
-│       └── scripts/
 ├── src/
 │   ├── deployments/
 │   │   ├── bicep/
@@ -230,25 +191,10 @@ hybrid-infra-toolkit/
 │       ├── validators/
 │       └── orchestration/
 ├── profiles/
-│   ├── targets/
-│   ├── cluster/
-│   ├── storage/
-│   ├── identity/
-│   ├── management/
-│   └── scenarios/
 ├── schemas/
 └── .github/
-    └── workflows/
+	└── workflows/
 ```
-
-## Migration Rules
-
-- do not delete or break the original implementation until the new repo can validate and run its reference implementation
-- move generated Bicep JSON artifacts only if they are intentionally kept; otherwise rebuild them in CI and treat them as generated output
-- keep the current implementation intact as a reference scenario before extracting shared modules
-- add the `src/deployments/*` structure now, but do not claim toolchain parity until implementations actually exist
-- use the migration to remove conference-specific assumptions from shared code, not to rewrite everything at once
-- bring documentation into MkDocs navigation instead of leaving it as an unstructured markdown dump
 
 ## Migration Mapping
 
@@ -259,7 +205,7 @@ hybrid-infra-toolkit/
 | `hyperv-cluster-demo/bicep/*.json` | not migrated by default | leave behind or regenerate | treat as generated artifacts unless explicitly versioned |
 | `hyperv-cluster-demo/config/variables.yml` | `examples/hyperv-cluster-reference/config/variables.yml` | move first | later split into reusable profiles and schema-backed values |
 | `hyperv-cluster-demo/docs/*.md` | `docs/reference/hyperv-cluster/` | rewrite into MkDocs | preserve technical content, rework navigation |
-| `hyperv-cluster-demo/scripts/common/HVLab.Automation.psm1` | `src/platform/powershell/modules/` | promote early | this is the strongest reusable foundation in the current implementation |
+| `hyperv-cluster-demo/scripts/common/HVLab.Automation.psm1` | `src/platform/powershell/modules/` | promote early | reusable foundation in the current implementation |
 | `hyperv-cluster-demo/scripts/deploy/*.ps1` | `examples/hyperv-cluster-reference/scripts/deploy/` and later `src/deployments/powershell-azurecli/` where reusable | move first, extract later | keep current host bootstrap working while shared logic is identified |
 | `hyperv-cluster-demo/scripts/configure/*.ps1` | `examples/hyperv-cluster-reference/scripts/configure/` and later `src/deployments/powershell-azurecli/` where reusable | move first, extract later | cluster, AD, WAC, and SCVMM setup need staged modularization |
 | `hyperv-cluster-demo/scripts/nested-vms/*.ps1` | `examples/hyperv-cluster-reference/scripts/nested-vms/` and later `src/deployments/powershell-azurecli/` where reusable | move first, extract later | later refactor into target-aware role deployment logic |
@@ -268,21 +214,21 @@ hybrid-infra-toolkit/
 | `hyperv-cluster-demo/scripts/validate/Invoke-HVLabPreflight.ps1` | `src/platform/validators/` | promote early | reuse as the first repo-wide validation gate |
 | `.github/workflows/hvlab-*.yml` | `.github/workflows/` | migrate in phases | update paths, names, secrets, and repo-specific assumptions |
 
-## Phased Migration Plan
+## Phased Plan
 
-### Phase 0. Bootstrap The New Repo
+### Phase 0. Bootstrap The Repo
 
-- initialize the new repository
-- establish MkDocs as the initial documentation stack
-- create the migration and platform planning baseline
-- create the planned `src/deployments` category structure without implementing all toolchains yet
+- initialize repository basics
+- establish MkDocs for public docs
+- create the planning baseline
+- create the planned `src/deployments` categories without claiming toolchain parity
 
-### Phase 1. Move The Current Reference Implementation
+### Phase 1. Move A Reference Implementation
 
-- copy the existing `hyperv-cluster-demo` implementation into `examples/hyperv-cluster-reference`
-- copy the current technical markdown into MkDocs reference sections
-- move workflow files into the new repo and update path references
-- validate that the reference implementation still passes preflight from the new repo
+- copy the current `hyperv-cluster-demo` implementation into `examples/hyperv-cluster-reference`
+- move selected technical documentation into public reference docs
+- migrate workflow files into the new repo and update path references
+- validate that the migrated reference implementation still passes preflight from the new repo
 
 ### Phase 2. Extract Reusable Platform Code
 
@@ -296,17 +242,17 @@ hybrid-infra-toolkit/
 - define the environment manifest
 - add profile folders for targets, cluster shape, storage, identity, management, and scenarios
 - replace hard-coded implementation assumptions with manifest-backed values
-- make the toolchain folders consume the same platform model instead of diverging
+- keep the deployment categories aligned to the same platform model
 
 ### Phase 4. Expand Toolchain Coverage
 
-- keep Bicep and PowerShell or Azure CLI as the first-class implementations
+- keep Bicep and PowerShell or Azure CLI as the first working implementations
 - add Terraform support against the shared model
 - add DSC support for host and guest desired state layers
-- add Ansible support where remote orchestration fits better than PowerShell-only approaches
+- add Ansible support where appropriate
 - add ARM template support for compatibility and legacy Azure deployment paths
 
-### Phase 5. Support Broader Platform Targets
+### Phase 5. Support Broader Targets
 
 - harden Azure VM as the first supported target
 - add nested Hyper-V target support from the same configuration model
@@ -319,22 +265,13 @@ hybrid-infra-toolkit/
 - add validated `s2d` support
 - add Azure Local as a scenario overlay
 
-## First Backlog For The New Repo
+## Working Backlog
 
 1. Copy the current implementation into `examples/hyperv-cluster-reference`.
-2. Copy and re-home the existing Hyper-V lab docs into MkDocs under `docs/reference/hyperv-cluster/`.
+2. Copy and re-home the existing Hybrid demo material needed for near-term sessions into public reference or demos docs where appropriate.
 3. Migrate `Invoke-HVLabPreflight.ps1` and the related GitHub workflow gates.
 4. Decide which Bicep JSON files are source artifacts versus generated output.
 5. Establish the `src/deployments` categories for Bicep, Terraform, PowerShell or Azure CLI, DSC, Ansible, and ARM.
 6. Create the first manifest draft for target, cluster, storage, identity, and management.
 7. Start renaming reusable components away from `hvlab`-specific naming where that improves portability.
-
-## Exit Criteria For The First Migration Milestone
-
-The first milestone is complete when:
-
-- the reference implementation exists in this repo
-- MkDocs builds successfully from this repo
-- the reference preflight validation succeeds from this repo
-- workflow orchestration no longer depends on the original repository layout
-- the source demo can be treated as legacy incubation rather than the primary home of the platform
+8. Build out `docs/demos/` for session-ready scenarios based on the toolkit.

@@ -11,6 +11,8 @@ theme:
 
 nav:
   - Home: index.md
+  - Demos:
+    - Overview: demos/index.md
   - Project:
     - About: project/about.md
     - Roadmap: project/roadmap.md
@@ -22,8 +24,6 @@ nav:
   - Design:
     - Deployment And Implementation: design/deployment-and-implementation.md
     - CI And CD Automation: design/ci-cd-automation.md
-  - Planning:
-      - Migration And Roadmap: planning/migration-roadmap.md
 
 markdown_extensions:
   - admonition
