@@ -1,6 +1,6 @@
 # Hybrid Infrastructure Toolkit
 
-This repository is the new home for the platform work previously incubated in the MMS 2026 Hyper-V cluster demo.
+Hybrid Infrastructure Toolkit is a new platform project for building configurable, repeatable hybrid infrastructure labs and reference environments.
 
 Current status:
 
@@ -37,8 +37,8 @@ mkdocs build
 
 ## Current Planning Focus
 
-- migrate the existing implementation from `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo`
-- separate reusable platform code from the current conference-specific reference implementation
+- define the platform model for configurable, repeatable hybrid infrastructure labs
+- use existing repositories only as source material and reference input where useful
 - introduce a configuration-driven model for targets, identity, storage, management, and scenario overlays
 - support multiple deployment categories under `src/deployments/`
 

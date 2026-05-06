@@ -1,6 +1,6 @@
 # About The Project
 
-Hybrid Infrastructure Toolkit is the long-term platform home for the infrastructure automation work that started as a conference-focused Hyper-V lab implementation.
+Hybrid Infrastructure Toolkit is a new platform project focused on building configurable, repeatable hybrid infrastructure labs and reference environments.
 
 The project is intended to grow into a configurable toolkit that can:
 
@@ -8,6 +8,7 @@ The project is intended to grow into a configurable toolkit that can:
 - support multiple deployment targets and identity models
 - provide a shared platform model across multiple automation toolchains
 - publish documentation under the thisismydemo.cloud site
+- align design and implementation standards across code, docs, automation, and configuration
 
 ## Scope
 
@@ -35,4 +36,4 @@ This repository currently contains:
 - source layout placeholders under src
 - an MkDocs documentation scaffold
 
-The original working implementation remains in the MMS 2026 demo repository until migration phases are executed.
+Existing repositories may provide reference material, migration inputs, or reusable implementation pieces, but this repository is not positioned as a successor brand for any single demo.

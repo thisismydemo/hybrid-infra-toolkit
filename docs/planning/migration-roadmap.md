@@ -1,6 +1,6 @@
 # Migration And Platform Roadmap
 
-This document is the working plan for moving the current Hyper-V lab implementation from `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo` into `E:\git\thisismydemo\hybrid-infra-toolkit`, while also evolving it into a broader, more repeatable platform.
+This document is the working plan for building Hybrid Infrastructure Toolkit as a new platform project and for selectively bringing in useful reference material, migration inputs, and reusable implementation pieces from existing repositories when appropriate.
 
 ## Purpose
 
@@ -13,13 +13,23 @@ The migration needs to preserve what already works while creating room for:
 - reusable platform modules
 - MkDocs-based documentation under `thisismydemo.cloud`
 
+## Positioning
+
+Hybrid Infrastructure Toolkit is not positioned as a rename or successor brand for the MMS 2026 Hyper-V demo.
+
+Instead:
+
+- it is a new project with its own product identity
+- existing repos are inputs, references, and possible migration sources
+- conference-specific material should not define the long-term platform identity
+
 ## Current Working Decisions
 
 - solution name: `Hybrid Infrastructure Toolkit`
 - GitHub repository: `https://github.com/thisismydemo/hybrid-infra-toolkit`
 - docs URL: `https://www.thisismydemo.cloud/hybrid-infra-toolkit`
 - docs stack: MkDocs for now
-- source implementation: `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo`
+- existing reference source: `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo`
 
 ## Current Repo State
 

@@ -1,8 +1,8 @@
 # Hybrid Infrastructure Toolkit
 
-Hybrid Infrastructure Toolkit is the planned successor to the current MMS 2026 Hyper-V cluster demo implementation.
+Hybrid Infrastructure Toolkit is a new platform project for building configurable, repeatable hybrid infrastructure labs and reference environments.
 
-The near-term goal is to migrate the working reference implementation into this repository without losing what already works. The longer-term goal is to turn that implementation into a configurable toolkit that supports multiple deployment targets, storage modes, identity models, and scenario overlays.
+The goal is to provide the broader platform we discussed: a toolkit that supports multiple deployment targets, storage modes, identity models, management approaches, deployment categories, and future scenario overlays without tying the product identity to a single conference demo.
 
 ## Current Decisions
 
@@ -14,7 +14,8 @@ The near-term goal is to migrate the working reference implementation into this 
 
 ## What Happens Next
 
-- move the current Hyper-V lab implementation into this repository as the first reference scenario
+- define the platform structure and standards in this repository first
+- selectively bring over reference material or reusable code from existing repositories where it helps
 - reorganize reusable code into `src/platform`
 - use `src/deployments` for separate Bicep, Terraform, PowerShell or Azure CLI, DSC, Ansible, and ARM paths
 - publish migration, roadmap, and future schema decisions through this docs site
