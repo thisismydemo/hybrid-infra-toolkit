@@ -2,14 +2,21 @@
 
 Use this area for deployment and orchestration paths driven by PowerShell and Azure CLI.
 
-Planned use:
+## Scope
 
-- host bootstrap workflows
+- host bootstrap and configuration
 - guest configuration orchestration
 - imperative deployment steps that are not cleanly expressed in declarative IaC alone
 
-Expected first migration sources:
+## Expected Layout
 
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\deploy`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\configure`
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\scripts\nested-vms`
+```text
+powershell-azurecli/
+├── deploy/
+├── configure/
+└── validate/
+```
+
+## Status
+
+Implementation has not started. Scripts added here should consume `configs/variables/variables.yml` and follow the PowerShell standards in `docs/standards/engineering-standards.md`.

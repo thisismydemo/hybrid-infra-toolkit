@@ -1,0 +1,171 @@
+# =============================================================================
+# Hybrid Infrastructure Toolkit — Variables Template
+# -----------------------------------------------------------------------------
+# This file is the canonical schema-shaped template for a deployment.
+# Copy this file to `variables.yml` (same directory) and fill in real values
+# for an environment. Do NOT commit real tenant IDs, subscription IDs, or
+# secrets to the repository.
+#
+# All secret values must use `keyvault://<vault-name>/<secret-name>` URIs.
+# Pre-stage secrets in the target Key Vault before any deployment runs.
+#
+# Naming convention: Microsoft Cloud Adoption Framework (CAF)
+#   <type>-<workload>-<instance>-<region>-<seq>
+#   Storage accounts: st<workload><seq>  (lowercase, no hyphens, max 24 chars)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. METADATA
+# -----------------------------------------------------------------------------
+metadata:
+  schema_version: "1.0.0"
+  environment: ""              # lab | dev | test | prod
+  tenant: ""                   # short name (used in tags, not the GUID)
+  tenant_id: ""                # Entra ID tenant GUID
+  subscription_id: ""          # Azure subscription GUID
+  owner: ""                    # owning identity / team
+  purpose: ""                  # one-line description of this environment
+  last_updated: ""             # YYYY-MM
+
+# -----------------------------------------------------------------------------
+# 2. DEPLOYMENT APPROACH
+# -----------------------------------------------------------------------------
+deployment:
+  method: ""                   # bicep | terraform | powershell-azurecli | dsc | ansible | arm
+  runner: ""                   # azure_cli | terraform | github_actions | local
+  entrypoint: ""               # repo-relative path to the deployment entrypoint
+  parameters: ""               # repo-relative path to deployment parameter file (if any)
+  bootstrap: ""                # custom_script_extension | cloud_init | none
+  bootstrap_script: ""         # repo-relative path to bootstrap script (if any)
+  automation: ""               # github_actions | azure_devops | local | none
+
+  azure_context:
+    tenant_id: ""
+    subscription_id: ""
+
+# -----------------------------------------------------------------------------
+# 3. AZURE PLATFORM
+# -----------------------------------------------------------------------------
+azure_platform:
+  region: ""                   # e.g. eastus
+  region_short: ""             # e.g. eus
+  resource_group: ""           # CAF: rg-<workload>-<env>-<region>-<seq>
+
+# -----------------------------------------------------------------------------
+# 4. NETWORKING
+# -----------------------------------------------------------------------------
+azure_networking:
+  use_existing_vnet: false
+  vnet_name: ""
+  vnet_resource_group: ""
+  vnet_address_space: ""
+  subnet:
+    name: ""
+    address_prefix: ""
+  ip_allocation: {}            # map of role -> private IP
+
+# -----------------------------------------------------------------------------
+# 5. HOST / COMPUTE
+# -----------------------------------------------------------------------------
+host_vm:
+  azure_resource_name: ""
+  size: ""
+  size_fallback: ""
+  os:
+    publisher: ""
+    offer: ""
+    sku: ""
+    version: "latest"
+  os_disk_size_gb: 0
+  os_disk_sku: ""
+  data_disks: []
+  private_ip: ""
+  private_ip_allocation: ""
+  ip_forwarding: false
+  accelerated_networking: false
+  admin_username: ""
+  admin_password: ""           # keyvault:// URI only
+  nsg_rules: []
+  tags: {}
+
+# -----------------------------------------------------------------------------
+# 6. PLATFORM CONFIGURATION (host-level workload features)
+# -----------------------------------------------------------------------------
+platform_config:
+  windows_features: []
+  vswitches: []
+  domain:
+    fqdn: ""
+    netbios: ""
+    join_ou: ""
+
+# -----------------------------------------------------------------------------
+# 7. WORKLOAD ROLES (nested VMs, cluster nodes, services)
+# -----------------------------------------------------------------------------
+roles: {}                      # map of role_name -> role definition
+
+# -----------------------------------------------------------------------------
+# 8. CLUSTER (if applicable)
+# -----------------------------------------------------------------------------
+cluster:
+  name: ""
+  ip: ""
+  nodes: []
+  witness:
+    type: ""                   # cloud | disk | none
+    storage_account: ""
+    container: ""
+    resource_group: ""
+  csvs: []
+
+# -----------------------------------------------------------------------------
+# 9. IDENTITY
+# -----------------------------------------------------------------------------
+active_directory:
+  domain: ""
+  netbios: ""
+  dcs: []
+  ous: {}
+  service_accounts: {}
+  security_groups: []
+
+# -----------------------------------------------------------------------------
+# 10. KEY VAULT
+# -----------------------------------------------------------------------------
+key_vault:
+  name: ""
+  resource_group: ""
+  secrets_required: []         # list of secret names that must exist before deployment
+
+# -----------------------------------------------------------------------------
+# 11. MANAGED IDENTITY
+# -----------------------------------------------------------------------------
+identity:
+  host_vm_identity:
+    name: ""
+    rg: ""
+    roles: []                  # list of { role, scope }
+
+# -----------------------------------------------------------------------------
+# 12. TAGS (applied to all Azure resources)
+# -----------------------------------------------------------------------------
+tags:
+  environment: ""
+  workload: ""
+  owner: ""
+  cost_center: ""
+  created_by: ""
+  repo: ""
+
+# -----------------------------------------------------------------------------
+# 13. AUTOMATION (CI/CD workflows)
+# -----------------------------------------------------------------------------
+automation_workflows: {}       # map of workflow_id -> { file, runs_on, description }
+
+# -----------------------------------------------------------------------------
+# 14. SCENARIO METADATA (optional, for demo / lab labelling)
+# -----------------------------------------------------------------------------
+scenario:
+  name: ""
+  description: ""
+  checkpoints: {}

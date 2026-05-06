@@ -7,8 +7,10 @@ This directory is the planned home for reusable implementation code in Hybrid In
 - `deployments/` contains tool-specific deployment implementations
 - `platform/` contains shared code, validation, and orchestration used across deployment categories
 
-Current state:
+## Configuration
 
-- directory structure created
-- implementations not migrated yet
-- reference implementation still lives in `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo` until migration phases begin
+All deployments in this directory consume configuration from `configs/variables/variables.yml`.
+
+## Status
+
+Directory structure is in place. Implementation has not started. New code should follow the standards in `docs/standards/engineering-standards.md` and the design guidance in `docs/design/`.

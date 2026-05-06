@@ -2,12 +2,22 @@
 
 Use this area for Bicep-based deployment implementations.
 
-Planned use:
+## Scope
 
 - Azure-first infrastructure deployment paths
-- reusable Bicep modules extracted from the current reference implementation
-- manifest-aligned deployment entrypoints
+- reusable Bicep modules for hybrid infrastructure scenarios
+- entrypoints aligned with `configs/variables/variables.yml`
 
-Expected first migration source:
+## Expected Layout
 
-- `E:\git\mms_2026_hybrid_demo\hyperv-cluster-demo\bicep`
+```text
+bicep/
+├── main.bicep
+├── parameters/
+│   └── main.bicepparam
+└── modules/
+```
+
+## Status
+
+Implementation has not started. New code added here should consume `configs/variables/variables.yml` and follow the standards in `docs/standards/engineering-standards.md`.

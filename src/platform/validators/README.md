@@ -1,7 +1,13 @@
 # Validators
 
-This directory is reserved for reusable validation and preflight logic.
+Reusable validation and preflight logic shared across deployment categories.
 
-Expected early migration candidate:
+## Scope
 
-- the current `Invoke-HVLabPreflight.ps1` validator from the Hyper-V lab implementation
+- preflight checks that gate deployments (quota, permissions, name availability, network reachability)
+- post-deployment validation (resource state, cluster health, service reachability)
+- schema validation for `configs/variables/variables.yml`
+
+## Status
+
+Implementation has not started.
