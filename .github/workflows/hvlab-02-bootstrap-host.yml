@@ -75,21 +75,6 @@ jobs:
       - name: "Wait for host services to settle"
         run: sleep 120
 
-      # ── Fetch GitHub App PEM from KV ───────────────────────────────────────
-      - name: "Fetch GitHub App PEM from Key Vault"
-        id: fetch-pem
-        run: |
-          PEM=$(az keyvault secret show \
-            --vault-name "$KV_NAME" \
-            --subscription "$KV_SUBSCRIPTION" \
-            --name "hvlab-github-app-pem" \
-            --query value -o tsv)
-          # Use delimiter syntax for multiline output
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "pem<<$EOF" >> $GITHUB_OUTPUT
-          echo "$PEM" >> $GITHUB_OUTPUT
-          echo "$EOF" >> $GITHUB_OUTPUT
-
       # ── Get GitHub runner token via GitHub App JWT (pure bash + openssl) ──
       - name: "Generate GitHub runner registration token"
         id: runner-token
@@ -97,9 +82,13 @@ jobs:
           set -euo pipefail
           APP_ID="3454084"
 
-          # Write PEM to temp file (avoids shell quoting issues)
+          # Download PEM directly from KV to a file — avoids all shell quoting/multiline issues
           PEM_FILE=$(mktemp)
-          echo "$APP_PEM" > "$PEM_FILE"
+          az keyvault secret download \
+            --vault-name "$KV_NAME" \
+            --subscription "$KV_SUBSCRIPTION" \
+            --name "hvlab-github-app-pem" \
+            --file "$PEM_FILE"
 
           # Build JWT: base64url(header).base64url(payload).base64url(sig)
           b64url() { base64 -w0 | tr '+/' '-_' | tr -d '='; }
@@ -136,8 +125,6 @@ jobs:
           fi
           echo "::add-mask::$TOKEN"
           echo "runner_token=$TOKEN" >> $GITHUB_OUTPUT
-        env:
-          APP_PEM: ${{ steps.fetch-pem.outputs.pem }}
 
       # ── Install GitHub runner ───────────────────────────────────────────────
       - name: "Install GitHub Actions self-hosted runner"
