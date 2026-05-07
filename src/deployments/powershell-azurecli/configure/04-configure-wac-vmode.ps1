@@ -7,14 +7,14 @@
 ##############################################################################
 
 param(
-    [string]$WacServer      = 'hvwac01',
-    [string]$PgPassword     = '',   # if empty, fetched from kv-tplabs-platform/hvwac01-pg-password
-    [string]$PgUsername     = 'wacadmin',
-    [int]   $PgPort         = 5432,
-    [int]   $WacPort        = 443,
-    [string]$KVName         = 'kv-tplabs-platform',
+    [string]$WacServer = 'hvwac01',
+    [string]$PgPassword = '',   # if empty, fetched from kv-tplabs-platform/hvwac01-pg-password
+    [string]$PgUsername = 'wacadmin',
+    [int]   $PgPort = 5432,
+    [int]   $WacPort = 443,
+    [string]$KVName = 'kv-tplabs-platform',
     [string]$KVSubscription = '2caa0b8a-a1d6-4f0c-8c03-861787b8315c',
-    [string[]]$ManagedHosts = @('hvnode01','hvnode02','hvnode03','hvnode04','hviscsi01','hvdc01')
+    [string[]]$ManagedHosts = @('hvnode01', 'hvnode02', 'hvnode03', 'hvnode04', 'hviscsi01', 'hvdc01')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -77,7 +77,8 @@ Invoke-Command -ComputerName $WacServer -ScriptBlock {
     $svc = Get-Service -Name 'ServerManagementGateway' -ErrorAction SilentlyContinue
     if ($svc) {
         Write-Host "  ✅ WAC vmode service: $($svc.Status)"
-    } else {
+    }
+    else {
         Write-Warning "WAC vmode service not found — check installer log at $installerDir\install.log"
     }
 
