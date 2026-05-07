@@ -94,11 +94,15 @@ jobs:
             --output json)
           echo "$OUTPUT"
           if echo "$OUTPUT" | grep -q 'Phase 2 skipped'; then
-            echo "Phase 2 already done — skipping settle wait."
+            echo "Phase 2 already done -- skipping settle wait."
             echo "needs_settle=false" >> $GITHUB_OUTPUT
-          else
+          elif echo "$OUTPUT" | grep -q 'Phase 2 complete marker created'; then
             echo "Phase 2 complete."
             echo "needs_settle=true" >> $GITHUB_OUTPUT
+          else
+            echo "ERROR: Phase 2 did not complete successfully. Marker was not created." >&2
+            echo "Check C:\\hvlab-bootstrap-phase2.log on the VM for details." >&2
+            exit 1
           fi
 
       - name: "Wait for host services to settle"

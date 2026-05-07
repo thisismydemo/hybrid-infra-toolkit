@@ -61,8 +61,19 @@ if (Test-Path 'C:\hvlab-phase2-complete.marker') {
 $tempVol = Get-Volume -DriveLetter 'D' -ErrorAction SilentlyContinue
 if ($tempVol -and $tempVol.FileSystemLabel -like '*Temp*') {
     Write-Log "Azure Temporary Storage is on D: (label: '$($tempVol.FileSystemLabel)') -- reassigning to T:"
-    $tempPartition = Get-Partition -DriveLetter 'D'
-    Set-Partition -InputObject $tempPartition -NewDriveLetter 'T'
+
+    # Windows blocks drive letter changes on volumes with a pagefile.
+    # Azure Temporary Storage almost always has a pagefile -- remove it first.
+    $pageFiles = Get-WmiObject -Class Win32_PageFileSetting | Where-Object { $_.Name -like 'D:\*' }
+    if ($pageFiles) {
+        Write-Log "Removing pagefile from D: (required before drive letter change)..."
+        $pageFiles | ForEach-Object { $_.Delete() }
+        Write-Log "Pagefile removed from D:"
+    } else {
+        Write-Log "No pagefile found on D: -- proceeding with drive letter change."
+    }
+
+    Set-Partition -DriveLetter 'D' -NewDriveLetter 'T'
     Write-Log "Temporary Storage reassigned to T:\"
 } elseif ($tempVol) {
     Write-Log "D: is in use (label: '$($tempVol.FileSystemLabel)') but does not appear to be Azure Temporary Storage -- leaving as-is."
