@@ -20,15 +20,15 @@ function Get-HVLabStorageRoot {
 function Resolve-HVLabStoragePath {
     param([string]$StorageRoot, [string]$ChildPath)
     $full = Join-Path $StorageRoot $ChildPath
-    $dir  = Split-Path $full -Parent
+    $dir = Split-Path $full -Parent
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     return $full
 }
 
 function New-HVLabBootstrapCredential {
     param(
-        [string]$SecretValue    = '',
-        [string]$VaultName      = '',
+        [string]$SecretValue = '',
+        [string]$VaultName = '',
         [string]$SubscriptionId = ''
     )
     if (-not $SecretValue -and $VaultName) {
@@ -58,10 +58,10 @@ function New-HVLabWindowsVhd {
     param(
         [string]$IsoPath,
         [string]$VhdPath,
-        [int]$SizeGB       = 80,
+        [int]$SizeGB = 80,
         [string]$ComputerName,
         [string]$AdminPassword,
-        [int]$ImageIndex   = 2   # WS2025 Standard Desktop
+        [int]$ImageIndex = 2   # WS2025 Standard Desktop
     )
 
     if (Test-Path $VhdPath) {
@@ -77,7 +77,7 @@ function New-HVLabWindowsVhd {
     New-VHD -Path $VhdPath -SizeBytes ($SizeGB * 1GB) -Dynamic | Out-Null
 
     $vhdMount = Mount-VHD -Path $VhdPath -Passthru
-    $disk     = Get-Disk -Number $vhdMount.DiskNumber
+    $disk = Get-Disk -Number $vhdMount.DiskNumber
 
     Initialize-Disk -InputObject $disk -PartitionStyle GPT -PassThru | Out-Null
 
@@ -96,14 +96,14 @@ function New-HVLabWindowsVhd {
     $os  | Add-PartitionAccessPath -AssignDriveLetter
 
     $efi = Get-Partition -DiskNumber $disk.Number |
-        Where-Object { $_.GptType -eq '{c12a7328-f81f-11d2-ba4b-00a0c93ec93b}' }
-    $os  = Get-Partition -DiskNumber $disk.Number |
-        Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' }
+    Where-Object { $_.GptType -eq '{c12a7328-f81f-11d2-ba4b-00a0c93ec93b}' }
+    $os = Get-Partition -DiskNumber $disk.Number |
+    Where-Object { $_.GptType -eq '{ebd0a0a2-b9e5-4433-87c0-68b6b72699c7}' }
 
-    $osLetter  = "$($os.DriveLetter):"
+    $osLetter = "$($os.DriveLetter):"
     $efiLetter = "$($efi.DriveLetter):"
 
-    $isoVol    = Mount-DiskImage -ImagePath $IsoPath -PassThru | Get-Volume
+    $isoVol = Mount-DiskImage -ImagePath $IsoPath -PassThru | Get-Volume
     $isoLetter = "$($isoVol.DriveLetter):"
 
     try {
@@ -167,7 +167,8 @@ function New-HVLabWindowsVhd {
 </unattend>
 "@ | Set-Content -Path "$panther\unattend.xml" -Encoding UTF8
 
-    } finally {
+    }
+    finally {
         Dismount-DiskImage -ImagePath $IsoPath -ErrorAction SilentlyContinue | Out-Null
     }
 
@@ -186,10 +187,10 @@ function New-HVLabVm {
         [string]$Name,
         [string]$OSVhdPath,
         [string]$VmPath,
-        [int]$MemoryGB              = 4,
-        [int]$ProcessorCount        = 2,
-        [array]$AdapterDefinitions  = @(),
-        [array]$DataVhdPaths        = @(),
+        [int]$MemoryGB = 4,
+        [int]$ProcessorCount = 2,
+        [array]$AdapterDefinitions = @(),
+        [array]$DataVhdPaths = @(),
         [switch]$ExposeVirtualizationExtensions
     )
 
@@ -201,11 +202,11 @@ function New-HVLabVm {
     if (-not (Test-Path $VmPath)) { New-Item -ItemType Directory -Path $VmPath -Force | Out-Null }
 
     $vm = New-VM -Name $Name -Path $VmPath -Generation 2 `
-                 -MemoryStartupBytes ($MemoryGB * 1GB) -NoVHD
+        -MemoryStartupBytes ($MemoryGB * 1GB) -NoVHD
 
     Set-VM -VM $vm -ProcessorCount $ProcessorCount -DynamicMemory:$false `
-           -AutomaticStartAction Nothing -AutomaticStopAction ShutDown `
-           -CheckpointType Production
+        -AutomaticStartAction Nothing -AutomaticStopAction ShutDown `
+        -CheckpointType Production
 
     if ($ExposeVirtualizationExtensions) {
         Set-VMProcessor -VM $vm -ExposeVirtualizationExtensions $true
@@ -263,7 +264,8 @@ function _WaitForPsDirect {
         try {
             Invoke-Command -VMName $VMName -Credential $Credential -ScriptBlock { $true } -ErrorAction Stop | Out-Null
             return $true
-        } catch { Start-Sleep -Seconds 10 }
+        }
+        catch { Start-Sleep -Seconds 10 }
     } while ((Get-Date) -lt $deadline)
     throw "Cannot connect to $VMName via PS Direct after $TimeoutMinutes minutes."
 }
@@ -279,7 +281,7 @@ function Initialize-HVLabGuestNetwork {
     _WaitForPsDirect -VMName $VMName -Credential $Credential
 
     Invoke-Command -VMName $VMName -Credential $Credential `
-        -ArgumentList (,$AdapterConfigurations) -ScriptBlock {
+        -ArgumentList (, $AdapterConfigurations) -ScriptBlock {
         param($AdapterConfigs)
 
         Enable-PSRemoting -Force -ErrorAction SilentlyContinue
@@ -289,7 +291,7 @@ function Initialize-HVLabGuestNetwork {
         $allAdapters = Get-NetAdapter | Sort-Object InterfaceIndex
 
         for ($i = 0; $i -lt $AdapterConfigs.Count; $i++) {
-            $cfg     = $AdapterConfigs[$i]
+            $cfg = $AdapterConfigs[$i]
             $adapter = $allAdapters | Where-Object { $_.Name -eq $cfg.GuestName } | Select-Object -First 1
             if (-not $adapter -and $i -lt $allAdapters.Count) { $adapter = $allAdapters[$i] }
             if (-not $adapter) { continue }
@@ -300,9 +302,9 @@ function Initialize-HVLabGuestNetwork {
 
             if ($cfg.IPAddress) {
                 Get-NetIPAddress   -InterfaceAlias $cfg.GuestName -ErrorAction SilentlyContinue |
-                    Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
+                Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
                 Get-NetRoute       -InterfaceAlias $cfg.GuestName -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
-                    Remove-NetRoute    -Confirm:$false -ErrorAction SilentlyContinue
+                Remove-NetRoute    -Confirm:$false -ErrorAction SilentlyContinue
 
                 New-NetIPAddress -InterfaceAlias $cfg.GuestName `
                     -IPAddress $cfg.IPAddress -PrefixLength $cfg.PrefixLength -ErrorAction SilentlyContinue | Out-Null
@@ -339,14 +341,15 @@ function Restart-HVLabGuest {
     param(
         [string]$VMName,
         [System.Management.Automation.PSCredential]$Credential,
-        [int]$DelaySeconds    = 15,
-        [int]$TimeoutMinutes  = 30
+        [int]$DelaySeconds = 15,
+        [int]$TimeoutMinutes = 30
     )
     Write-Host "  Restarting $VMName..." -ForegroundColor DarkGray
     try {
         Invoke-Command -VMName $VMName -Credential $Credential `
             -ScriptBlock { Restart-Computer -Force } -ErrorAction SilentlyContinue
-    } catch {}
+    }
+    catch {}
 
     Start-Sleep -Seconds $DelaySeconds
 
@@ -387,7 +390,7 @@ function Join-HVLabGuestToDomain {
         }
 
         # Wait for DC reachability
-        $dc       = $DnsServers | Select-Object -First 1
+        $dc = $DnsServers | Select-Object -First 1
         $deadline = (Get-Date).AddMinutes(10)
         do {
             if (Test-Connection -ComputerName $dc -Count 1 -Quiet -ErrorAction SilentlyContinue) { break }

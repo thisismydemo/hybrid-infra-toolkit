@@ -3,24 +3,24 @@
 ##############################################################################
 
 param(
-    [string]$VMName            = 'hvscvmm01',
-    [string]$StorageRoot       = '',
-    [string]$ISOPath           = '',
+    [string]$VMName = 'hvscvmm01',
+    [string]$StorageRoot = '',
+    [string]$ISOPath = '',
     [string]$BootstrapPassword = '',
-    [int]$vCPUs                = 8,
-    [int]$MemoryGB             = 32,
-    [int]$OSDiskGB             = 80,
-    [int]$DataDiskGB           = 100,
-    [string]$MgmtIP            = '172.16.10.40',
-    [int]$MgmtPrefixLen        = 24,
-    [string]$ExternalIP        = '10.250.2.7',
-    [int]$ExternalPrefixLen    = 27,
-    [string]$ExternalGateway   = '10.250.2.1',
-    [string]$MgmtDnsServer     = '172.16.10.10',
-    [string]$DomainFqdn        = 'azrl.mgmt',
-    [string]$DomainJoinUser    = 'Administrator',
-    [string]$KVName            = 'kv-tplabs-platform',
-    [string]$KVSubscription    = '2caa0b8a-a1d6-4f0c-8c03-861787b8315c'
+    [int]$vCPUs = 8,
+    [int]$MemoryGB = 32,
+    [int]$OSDiskGB = 80,
+    [int]$DataDiskGB = 100,
+    [string]$MgmtIP = '172.16.10.40',
+    [int]$MgmtPrefixLen = 24,
+    [string]$ExternalIP = '10.250.2.7',
+    [int]$ExternalPrefixLen = 27,
+    [string]$ExternalGateway = '10.250.2.1',
+    [string]$MgmtDnsServer = '172.16.10.10',
+    [string]$DomainFqdn = 'azrl.mgmt',
+    [string]$DomainJoinUser = 'Administrator',
+    [string]$KVName = 'kv-tplabs-platform',
+    [string]$KVSubscription = '2caa0b8a-a1d6-4f0c-8c03-861787b8315c'
 )
 
 $ErrorActionPreference = 'Stop'
