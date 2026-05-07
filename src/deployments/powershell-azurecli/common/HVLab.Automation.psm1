@@ -1,5 +1,5 @@
 ##############################################################################
-# HVLab.Automation.psm1  — Shared helper functions for HVLab nested-VM deploy
+# HVLab.Automation.psm1  - Shared helper functions for HVLab nested-VM deploy
 # Runs on: vm-hvlab-host01-eus-01 (WS2025, Hyper-V host) via GH Actions runner
 ##############################################################################
 
@@ -65,14 +65,14 @@ function New-HVLabWindowsVhd {
     )
 
     if (Test-Path $VhdPath) {
-        Write-Host "  VHD already exists: $VhdPath — skipping." -ForegroundColor Yellow
+        Write-Host "  VHD already exists: $VhdPath - skipping." -ForegroundColor Yellow
         return $VhdPath
     }
 
     $vhdDir = Split-Path $VhdPath -Parent
     if (-not (Test-Path $vhdDir)) { New-Item -ItemType Directory -Path $vhdDir -Force | Out-Null }
 
-    Write-Host "  Creating VHDX from $IsoPath (index=$ImageIndex) → $VhdPath" -ForegroundColor DarkGray
+    Write-Host "  Creating VHDX from $IsoPath (index=$ImageIndex) ? $VhdPath" -ForegroundColor DarkGray
 
     New-VHD -Path $VhdPath -SizeBytes ($SizeGB * 1GB) -Dynamic | Out-Null
 
@@ -110,14 +110,14 @@ function New-HVLabWindowsVhd {
         $wimPath = Join-Path $isoLetter 'sources\install.wim'
         if (-not (Test-Path $wimPath)) { $wimPath = Join-Path $isoLetter 'sources\install.esd' }
 
-        Write-Host "  Applying WIM index $ImageIndex → $osLetter ..." -ForegroundColor DarkGray
+        Write-Host "  Applying WIM index $ImageIndex ? $osLetter ..." -ForegroundColor DarkGray
         & dism /Apply-Image /ImageFile:"$wimPath" /Index:$ImageIndex /ApplyDir:"$osLetter\" /Quiet
         if ($LASTEXITCODE -ne 0) { throw "DISM apply failed (exit $LASTEXITCODE)" }
 
         & bcdboot "$osLetter\Windows" /s "$efiLetter" /f UEFI
         if ($LASTEXITCODE -ne 0) { throw "bcdboot failed (exit $LASTEXITCODE)" }
 
-        # Unattend — sets hostname, admin password, enables RDP
+        # Unattend - sets hostname, admin password, enables RDP
         $panther = "$osLetter\Windows\Panther"
         New-Item -ItemType Directory -Path $panther -Force | Out-Null
         @"
@@ -195,7 +195,7 @@ function New-HVLabVm {
     )
 
     if (Get-VM -Name $Name -ErrorAction SilentlyContinue) {
-        Write-Host "  VM $Name already exists — skipping." -ForegroundColor Yellow
+        Write-Host "  VM $Name already exists - skipping." -ForegroundColor Yellow
         return Get-VM -Name $Name
     }
 
@@ -236,7 +236,7 @@ function New-HVLabVm {
     Enable-VMIntegrationService -VM $vm -Name 'Guest Service Interface' -ErrorAction SilentlyContinue
 
     Start-VM -VM $vm
-    Write-Host "  $Name started — waiting for first-boot heartbeat..." -ForegroundColor DarkGray
+    Write-Host "  $Name started - waiting for first-boot heartbeat..." -ForegroundColor DarkGray
 
     $deadline = (Get-Date).AddMinutes(20)
     do {
@@ -246,7 +246,7 @@ function New-HVLabVm {
 
     if ($hb -ne 'OK') { throw "VM $Name did not come up within 20 minutes." }
 
-    Write-Host "  $Name heartbeat OK — settling 90s for first-boot specialize..." -ForegroundColor DarkGray
+    Write-Host "  $Name heartbeat OK - settling 90s for first-boot specialize..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 90
 
     Write-Host "  VM $Name ready." -ForegroundColor Green
