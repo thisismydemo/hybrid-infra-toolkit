@@ -20,64 +20,72 @@ jobs:
       - name: "Ensure runner has Hyper-V admin rights"
         shell: powershell
         run: |
-          $members = Get-LocalGroupMember -Group "Hyper-V Administrators" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
-          if ($members -notcontains "NT AUTHORITY\SYSTEM") {
-            Add-LocalGroupMember -Group "Hyper-V Administrators" -Member "NT AUTHORITY\SYSTEM" -ErrorAction SilentlyContinue
-            Write-Host "Added SYSTEM to Hyper-V Administrators"
-          } else {
-            Write-Host "SYSTEM already in Hyper-V Administrators"
-          }
-          # Also add the runner service account explicitly
-          $svc = Get-WmiObject Win32_Service -Filter "Name LIKE 'actions.runner.%'" | Select-Object -First 1
-          if ($svc -and $svc.StartName -notin @('LocalSystem','NT AUTHORITY\SYSTEM') -and $svc.StartName -notlike '*SYSTEM*') {
-            Add-LocalGroupMember -Group "Hyper-V Administrators" -Member $svc.StartName -ErrorAction SilentlyContinue
-            Write-Host "Added $($svc.StartName) to Hyper-V Administrators"
-          }
           Write-Host "Runner identity: $([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)"
           $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
           Write-Host "Is admin: $isAdmin"
+          # Test if we can create a scheduled task as SYSTEM (required for Hyper-V ops)
+          try {
+            $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-Command exit 0"
+            $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
+            Register-ScheduledTask -TaskName "HVLab-SysCheck" -Action $action -Principal $principal -Force | Out-Null
+            Unregister-ScheduledTask -TaskName "HVLab-SysCheck" -Confirm:$false
+            Write-Host "Scheduled task as SYSTEM: OK"
+          } catch {
+            Write-Host "Scheduled task as SYSTEM FAILED: $_"
+            throw "Cannot create scheduled tasks as SYSTEM. Runner account ($([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)) lacks required rights."
+          }
 
       - name: "Create forest root DC (hvdc01 — azrl.mgmt)"
         shell: powershell
-        env:
-          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
-        run: src/deployments/powershell-azurecli/nested-vms/01-create-dc.ps1
+        run: |
+          $invoker = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsSystem.ps1"
+          $script  = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\01-create-dc.ps1"
+          & $invoker -ScriptPath $script -LogFile "C:\Temp\hvlab-01-create-dc.log" -TaskName "HVLab-01-CreateDC" -TimeoutMinutes 45 `
+            -EnvVars @{ HVLAB_BOOTSTRAP_PASSWORD = 'HVLab@2026!' }
 
       - name: "Create iSCSI target server (hviscsi01)"
         shell: powershell
-        env:
-          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
-        run: src/deployments/powershell-azurecli/nested-vms/02-create-iscsi.ps1
+        run: |
+          $invoker = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsSystem.ps1"
+          $script  = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\02-create-iscsi.ps1"
+          & $invoker -ScriptPath $script -LogFile "C:\Temp\hvlab-02-create-iscsi.log" -TaskName "HVLab-02-CreateISCSI" -TimeoutMinutes 30 `
+            -EnvVars @{ HVLAB_BOOTSTRAP_PASSWORD = 'HVLab@2026!' }
 
       - name: "Create Hyper-V cluster nodes (hvnode01-04)"
         shell: powershell
-        env:
-          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
-        run: src/deployments/powershell-azurecli/nested-vms/03-create-cluster-nodes.ps1
+        run: |
+          $invoker = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsSystem.ps1"
+          $script  = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\03-create-cluster-nodes.ps1"
+          & $invoker -ScriptPath $script -LogFile "C:\Temp\hvlab-03-create-nodes.log" -TaskName "HVLab-03-CreateNodes" -TimeoutMinutes 60 `
+            -EnvVars @{ HVLAB_BOOTSTRAP_PASSWORD = 'HVLab@2026!' }
 
       - name: "Create WAC vmode server (hvwac01 — WS2025)"
         shell: powershell
-        env:
-          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
-        run: src/deployments/powershell-azurecli/nested-vms/04-create-wac-vmode.ps1
+        run: |
+          $invoker = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsSystem.ps1"
+          $script  = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\04-create-wac-vmode.ps1"
+          & $invoker -ScriptPath $script -LogFile "C:\Temp\hvlab-04-create-wac.log" -TaskName "HVLab-04-CreateWAC" -TimeoutMinutes 30 `
+            -EnvVars @{ HVLAB_BOOTSTRAP_PASSWORD = 'HVLab@2026!' }
 
       - name: "Create SCVMM server (hvscvmm01)"
         shell: powershell
-        env:
-          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
-        run: src/deployments/powershell-azurecli/nested-vms/05-create-scvmm.ps1
+        run: |
+          $invoker = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsSystem.ps1"
+          $script  = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\05-create-scvmm.ps1"
+          & $invoker -ScriptPath $script -LogFile "C:\Temp\hvlab-05-create-scvmm.log" -TaskName "HVLab-05-CreateSCVMM" -TimeoutMinutes 30 `
+            -EnvVars @{ HVLAB_BOOTSTRAP_PASSWORD = 'HVLab@2026!' }
 
       - name: Summary
         shell: powershell
         run: |
-          $vms = Get-VM | Select-Object Name, State, @{N='MemoryGB';E={[math]::Round($_.MemoryAssigned/1GB,1)}}, ProcessorCount
-          $vms | Format-Table | Out-String | Write-Host
-          "## ✅ Nested VMs Created" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          $invoker = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsSystem.ps1"
+          $summaryScript = "C:\Temp\hvlab-summary.ps1"
+          Set-Content $summaryScript @'
+$vms = Get-VM | Select-Object Name, State, @{N='MemoryGB';E={[math]::Round($_.MemoryAssigned/1GB,1)}}, ProcessorCount
+$vms | Format-Table | Out-String | Write-Host
+'@
+          & $invoker -ScriptPath $summaryScript -LogFile "C:\Temp\hvlab-summary.log" -TaskName "HVLab-Summary" -TimeoutMinutes 5
+          "## Nested VMs Created" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           "| VM | State | Memory | vCPU |" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           "|---|---|---|---|" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-          foreach ($vm in $vms) {
-            "| $($vm.Name) | $($vm.State) | $($vm.MemoryGB) GB | $($vm.ProcessorCount) |" |
-              Out-File $env:GITHUB_STEP_SUMMARY -Append
-          }
-          "`n**Next step:** Run **HVLab 04 — Configure Cluster**" |
-            Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "`n**Next step:** Run **HVLab 04 — Configure Failover Cluster**" | Out-File $env:GITHUB_STEP_SUMMARY -Append
