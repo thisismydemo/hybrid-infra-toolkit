@@ -1,2 +1,2 @@
-triggered: 2026-05-07 14:57:41
-fix: runner now hvlabadmin - direct script calls, no credential delegation
+triggered: 2026-05-07 15:01:34
+retrigger: hvdc01 cleaned up, fresh run
