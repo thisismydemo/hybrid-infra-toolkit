@@ -2,6 +2,10 @@ name: "HVLab 02b — Post-Bootstrap (ISOs + Arc)"
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["HVLab 02 — Bootstrap Host VM"]
+    types: [completed]
+    branches: [main]
 
 env:
   SUBSCRIPTION_ID: "00cd4357-ed45-4efb-bee0-10c467ff994b"
@@ -10,6 +14,7 @@ env:
 jobs:
   post-bootstrap:
     name: Post-Bootstrap (ISOs + Arc)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: [self-hosted, hvlab-host]
     permissions:
       contents: read

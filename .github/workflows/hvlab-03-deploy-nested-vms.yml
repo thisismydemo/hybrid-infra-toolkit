@@ -3,7 +3,7 @@ name: "HVLab 03 — Deploy Nested VMs"
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["HVLab 02 — Bootstrap Host VM"]
+    workflows: ["HVLab 02b — Post-Bootstrap (ISOs + Arc)"]
     types: [completed]
 
 jobs:
