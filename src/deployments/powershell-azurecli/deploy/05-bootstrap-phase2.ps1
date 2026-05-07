@@ -55,7 +55,7 @@ function Invoke-WithTimeout {
     )
     $job = Start-Job -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList
     if (Wait-Job $job -Timeout $TimeoutSeconds) {
-        try   { $result = Receive-Job $job }
+        try { $result = Receive-Job $job }
         catch { $result = $null }
         Remove-Job $job -Force -ErrorAction SilentlyContinue
         return $result
@@ -175,16 +175,16 @@ $mgmtAdapter = Get-NetAdapter | Where-Object {
 
 Write-Log "Binding vSwitch-External to adapter: $($mgmtAdapter.Name)"
 $extExists = Invoke-WithTimeout `
-    -ScriptBlock    { param($n) Get-VMSwitch -Name $n -ErrorAction SilentlyContinue } `
+    -ScriptBlock { param($n) Get-VMSwitch -Name $n -ErrorAction SilentlyContinue } `
     -ArgumentList   'vSwitch-External' `
     -TimeoutSeconds 20 `
     -Description    'Get-VMSwitch vSwitch-External'
 if (-not $extExists) {
     Write-Log "Creating vSwitch-External (or existence check timed out -- attempting create)..."
     Invoke-WithTimeout `
-        -ScriptBlock    { param($name, $nic) New-VMSwitch -Name $name -NetAdapterName $nic -AllowManagementOS $true | Out-Null } `
+        -ScriptBlock { param($name, $nic) New-VMSwitch -Name $name -NetAdapterName $nic -AllowManagementOS $true | Out-Null } `
         -ArgumentList   'vSwitch-External', $mgmtAdapter.Name `
-        -TimeoutSeconds 120 `
+        -TimeoutSeconds 300 `
         -Description    'New-VMSwitch vSwitch-External'
     Write-Log "vSwitch-External create attempt finished (see WARN above if it timed out)."
 }
@@ -193,22 +193,22 @@ else {
 }
 
 $internalSwitches = @(
-    @{ Name = 'vSwitch-Mgmt';      IP = '172.16.10.1'; Prefix = 24 },
+    @{ Name = 'vSwitch-Mgmt'; IP = '172.16.10.1'; Prefix = 24 },
     @{ Name = 'vSwitch-Migration'; IP = '172.16.20.1'; Prefix = 24 },
-    @{ Name = 'vSwitch-Storage';   IP = '172.16.30.1'; Prefix = 24 },
+    @{ Name = 'vSwitch-Storage'; IP = '172.16.30.1'; Prefix = 24 },
     @{ Name = 'vSwitch-Heartbeat'; IP = '172.16.40.1'; Prefix = 24 },
-    @{ Name = 'vSwitch-Workload';  IP = '172.16.50.1'; Prefix = 24 }
+    @{ Name = 'vSwitch-Workload'; IP = '172.16.50.1'; Prefix = 24 }
 )
 
 foreach ($sw in $internalSwitches) {
     $swExists = Invoke-WithTimeout `
-        -ScriptBlock    { param($n) Get-VMSwitch -Name $n -ErrorAction SilentlyContinue } `
+        -ScriptBlock { param($n) Get-VMSwitch -Name $n -ErrorAction SilentlyContinue } `
         -ArgumentList   $sw.Name `
         -TimeoutSeconds 20 `
         -Description    "Get-VMSwitch $($sw.Name)"
     if (-not $swExists) {
         Invoke-WithTimeout `
-            -ScriptBlock    { param($n) New-VMSwitch -Name $n -SwitchType Internal | Out-Null } `
+            -ScriptBlock { param($n) New-VMSwitch -Name $n -SwitchType Internal | Out-Null } `
             -ArgumentList   $sw.Name `
             -TimeoutSeconds 60 `
             -Description    "New-VMSwitch $($sw.Name)"
