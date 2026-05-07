@@ -1,0 +1,148 @@
+name: "HVLab 01 — Deploy Azure Infrastructure"
+
+on:
+  workflow_dispatch:
+    inputs:
+      location:
+        description: "Azure region (run 01-find-best-region.ps1 first)"
+        required: true
+        default: "eastus"
+      vm_size:
+        description: "VM size"
+        required: true
+        default: "Standard_M32ms"
+        type: choice
+        options:
+          - Standard_M32ms
+          - Standard_E48ds_v5
+          - Standard_E104ids_v5
+          - Standard_E96ds_v5
+          - Standard_E64ds_v5
+
+
+env:
+  SUBSCRIPTION_ID: "00cd4357-ed45-4efb-bee0-10c467ff994b"
+  RESOURCE_GROUP:  "rg-hvlab-mms26-eus-01"
+  TEMPLATE_FILE:   "src/deployments/bicep/main.bicep"
+  PARAMS_FILE:     "src/deployments/bicep/parameters/tplabs.bicepparam"
+
+permissions:
+  id-token: write   # for OIDC
+  contents: read
+
+jobs:
+  preflight:
+    name: Validate repo before deployment
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
+            Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+            Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          }
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.SUBSCRIPTION_ID }}
+
+      - name: Run preflight validation
+        shell: pwsh
+        run: |
+          src/platform/validators/Invoke-HVLabPreflight.ps1 `
+            -SubscriptionId "${{ env.SUBSCRIPTION_ID }}" `
+            -ResourceGroup "${{ env.RESOURCE_GROUP }}" `
+            -Location "${{ github.event.inputs.location || 'eastus' }}" `
+            -VmSize "${{ github.event.inputs.vm_size || 'Standard_M32ms' }}"
+
+  deploy:
+    name: Deploy Bicep
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.SUBSCRIPTION_ID }}
+
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --subscription "$SUBSCRIPTION_ID" \
+            --name "$RESOURCE_GROUP" \
+            --location "${{ github.event.inputs.location || 'eastus' }}" \
+            --tags environment=lab workload=hvlab-mms26 owner=kristopherjturner \
+                   demoEvent=mms-moa-2026 createdBy=github-actions
+
+      - name: Validate Bicep
+        run: |
+          az deployment group validate \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file "$TEMPLATE_FILE" \
+            --parameters "$PARAMS_FILE" \
+            --parameters location="${{ github.event.inputs.location || 'eastus' }}" \
+                         vmSize="${{ github.event.inputs.vm_size || 'Standard_M32ms' }}"
+
+      - name: Deploy Bicep
+        id: deploy
+        run: |
+          set -euo pipefail
+          az deployment group create \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file "$TEMPLATE_FILE" \
+            --parameters "$PARAMS_FILE" \
+            --parameters location="${{ github.event.inputs.location || 'eastus' }}" \
+                         vmSize="${{ github.event.inputs.vm_size || 'Standard_M32ms' }}" \
+            --name "hvlab-deploy-${{ github.run_number }}" \
+            --output json > /tmp/deploy-output.json
+
+          PUBLIC_IP=$(jq -r '.properties.outputs.publicIpAddress.value' /tmp/deploy-output.json)
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+          echo "✅ Host VM public IP: $PUBLIC_IP"
+
+      - name: Assign Key Vault role to Managed Identity
+        run: |
+          PRINCIPAL_ID=$(az identity show \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "mi-hvlab-host01-eus-01" \
+            --query principalId -o tsv)
+
+          echo "Host VM identity principalId: $PRINCIPAL_ID"
+
+          KV_ID=$(az keyvault show \
+            --name kv-tplabs-platform \
+            --subscription "2caa0b8a-a1d6-4f0c-8c03-861787b8315c" \
+            --resource-group "rg-azrlmgmt-dev-eus-01" \
+            --query id -o tsv)
+
+          az role assignment create \
+            --role "Key Vault Secrets User" \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --scope "$KV_ID" \
+            --subscription "2caa0b8a-a1d6-4f0c-8c03-861787b8315c" || \
+          echo "Role may already exist — continuing"
+
+          echo "✅ Key Vault Secrets User role assigned to host VM managed identity."
+
+      - name: Summary
+        run: |
+          echo "## ✅ Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource Group | $RESOURCE_GROUP |" >> $GITHUB_STEP_SUMMARY
+          echo "| Public IP | ${{ steps.deploy.outputs.public_ip }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Next step | Run **HVLab 02 — Bootstrap Host** |" >> $GITHUB_STEP_SUMMARY

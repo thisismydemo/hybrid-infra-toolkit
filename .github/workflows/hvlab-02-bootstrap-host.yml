@@ -1,0 +1,148 @@
+name: "HVLab 02 — Bootstrap Host VM"
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["HVLab 01 — Deploy Azure Infrastructure"]
+    types: [completed]
+    branches: [main]
+
+env:
+  SUBSCRIPTION_ID: "00cd4357-ed45-4efb-bee0-10c467ff994b"
+  RESOURCE_GROUP:  "rg-hvlab-mms26-eus-01"
+  VM_NAME:         "vm-hvlab-host01-eus-01"
+  KV_NAME:         "kv-tplabs-platform"
+  KV_SUBSCRIPTION: "2caa0b8a-a1d6-4f0c-8c03-861787b8315c"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap Host VM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.SUBSCRIPTION_ID }}
+
+      # ── Phase 1: Install Windows Features ──────────────────────────────────
+      - name: "Phase 1 — Install Windows features (will reboot)"
+        run: |
+          SCRIPT=$(cat src/deployments/powershell-azurecli/deploy/04-bootstrap-phase1.ps1 | base64 -w 0)
+          az vm run-command invoke \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts "powershell -EncodedCommand $SCRIPT" \
+            --output json
+          echo "Phase 1 script sent — VM will reboot."
+
+      - name: "Wait for reboot (5 minutes)"
+        run: |
+          echo "Waiting 5 minutes for VM to reboot and come back online..."
+          sleep 300
+
+      - name: "Wait for VM to be running"
+        run: |
+          az vm wait \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --updated \
+            --timeout 300
+          echo "VM is back online."
+
+      # ── Phase 2: Configure Hyper-V ─────────────────────────────────────────
+      - name: "Phase 2 — Configure Hyper-V, vSwitches, and WinNAT"
+        run: |
+          az vm run-command invoke \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts @src/deployments/powershell-azurecli/deploy/05-bootstrap-phase2.ps1 \
+            --output json
+          echo "Phase 2 complete."
+
+      - name: "Wait for host services to settle"
+        run: sleep 120
+
+      # ── Get GitHub runner token via KV PAT (GITHUB_TOKEN lacks runner scope) ──
+      - name: "Generate GitHub runner registration token"
+        id: runner-token
+        run: |
+          PAT=$(az keyvault secret show \
+            --vault-name "$KV_NAME" \
+            --subscription "$KV_SUBSCRIPTION" \
+            --name "hvlab-github-pat-full" \
+            --query value -o tsv)
+          TOKEN=$(curl -s -X POST \
+            -H "Authorization: Bearer $PAT" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token \
+            | jq -r .token)
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "ERROR: Failed to obtain runner registration token" && exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          echo "runner_token=$TOKEN" >> $GITHUB_OUTPUT
+
+      # ── Install GitHub runner ───────────────────────────────────────────────
+      - name: "Install GitHub Actions self-hosted runner"
+        run: |
+          az vm run-command invoke \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts @src/deployments/powershell-azurecli/deploy/06-install-github-runner.ps1 \
+            --parameters "RunnerToken=${{ steps.runner-token.outputs.runner_token }}" \
+            --output json
+          echo "GitHub runner installed."
+
+      - name: Summary
+        run: |
+          echo "## ✅ Host VM Bootstrap Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- Windows features, storage pool, vSwitches, and WinNAT done" >> $GITHUB_STEP_SUMMARY
+          echo "- Host domain join intentionally deferred until the lab-local domain exists" >> $GITHUB_STEP_SUMMARY
+          echo "- Self-hosted runner **hvlab-host** installed and running" >> $GITHUB_STEP_SUMMARY
+          echo "**Next step:** Run **HVLab 02b — Post-Bootstrap (ISOs + Arc)**" >> $GITHUB_STEP_SUMMARY
+
+  # ── Second job: runs ON the self-hosted runner (needs runner from job above) ──
+  post-bootstrap:
+    name: Post-Bootstrap (ISOs + Arc)
+    needs: bootstrap
+    runs-on: [self-hosted, hvlab-host]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Download evaluation ISOs (WS2022, WS2025, SQL 2022 Dev)"
+        shell: pwsh
+        run: src/deployments/powershell-azurecli/deploy/00-download-isos.ps1
+        continue-on-error: true   # slow downloads shouldn't block lab setup
+
+      - name: "Install Azure Arc Connected Machine Agent"
+        shell: pwsh
+        run: |
+          src/deployments/powershell-azurecli/deploy/07-install-arc.ps1 `
+            -SubscriptionId "${{ env.SUBSCRIPTION_ID }}" `
+            -ResourceGroup  "${{ env.RESOURCE_GROUP }}"
+        continue-on-error: true
+
+      - name: Summary
+        shell: pwsh
+        run: |
+          "## ✅ Post-Bootstrap Complete" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "- Evaluation ISOs downloading to D:\HyperVStorage\ISOs\" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "- Azure Arc agent installed on hvlabhost01" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "**Next step:** Run **HVLab 03 — Deploy Nested VMs**" | Out-File $env:GITHUB_STEP_SUMMARY -Append
