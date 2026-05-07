@@ -15,17 +15,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: "Install SQL Server Developer + SCVMM 2025"
-        shell: pwsh
+        shell: powershell
         run: src/deployments/powershell-azurecli/configure/06-configure-scvmm.ps1
 
       - name: "Add Hyper-V hosts and cluster to SCVMM"
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "SCVMM host addition handled inside 06-configure-scvmm.ps1"
           Write-Host "SCVMM console access: https://10.250.2.7 (hvscvmm01 external IP)"
 
       - name: Summary
-        shell: pwsh
+        shell: powershell
         run: |
           "## ✅ SCVMM 2025 Configured" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           "" | Out-File $env:GITHUB_STEP_SUMMARY -Append

@@ -69,12 +69,12 @@ Invoke-HVLabPowerShellDirect -VMName $VMName -Credential $bootstrapCredential -A
     if (-not $alreadyDc) {
         Install-WindowsFeature AD-Domain-Services, DNS -IncludeManagementTools | Out-Null
         $safeModePassword = $BootstrapPassword
-        Install-ADDSForest \
-        -DomainName $DomainFqdn \
-        -DomainNetbiosName $DomainNetBIOS \
-        -InstallDNS \
-        -SafeModeAdministratorPassword $safeModePassword \
-        -NoRebootOnCompletion:$true \
+        Install-ADDSForest `
+        -DomainName $DomainFqdn `
+        -DomainNetbiosName $DomainNetBIOS `
+        -InstallDNS `
+        -SafeModeAdministratorPassword $safeModePassword `
+        -NoRebootOnCompletion:$true `
         -Force:$true
     }
 

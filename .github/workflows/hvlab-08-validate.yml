@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: "Check all nested VMs are running"
-        shell: pwsh
+        shell: powershell
         run: |
           $expected = @('hvdc01','hviscsi01','hvnode01','hvnode02','hvnode03','hvnode04','hvwac01','hvscvmm01')
           $running  = (Get-VM | Where-Object { $_.State -eq 'Running' }).Name

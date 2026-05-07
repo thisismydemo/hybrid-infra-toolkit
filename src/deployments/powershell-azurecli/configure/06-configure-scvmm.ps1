@@ -5,13 +5,13 @@
 ##############################################################################
 
 param(
-    [string]$ScvmmServer       = 'hvscvmm01',
-    [string]$SqlISO            = 'S:\HyperVStorage\ISOs\SQL2022Dev.iso',
-    [string]$ScvmmSetupDest    = 'S:\HyperVStorage\SCVMM2025',   # downloaded from blob
-    [string]$ScvmmStorageAcct  = 'sthvlabcontent01',
-    [string]$DomainFqdn        = 'azrl.mgmt',
-    [string]$KVName            = 'kv-tplabs-platform',
-    [string]$KVSubscription    = '2caa0b8a-a1d6-4f0c-8c03-861787b8315c'
+    [string]$ScvmmServer = 'hvscvmm01',
+    [string]$SqlISO = 'S:\HyperVStorage\ISOs\SQL2022Dev.iso',
+    [string]$ScvmmSetupDest = 'S:\HyperVStorage\SCVMM2025',   # downloaded from blob
+    [string]$ScvmmStorageAcct = 'sthvlabcontent01',
+    [string]$DomainFqdn = 'azrl.mgmt',
+    [string]$KVName = 'kv-tplabs-platform',
+    [string]$KVSubscription = '2caa0b8a-a1d6-4f0c-8c03-861787b8315c'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,7 +34,7 @@ $session = New-PSSession -ComputerName $ScvmmServer
 Copy-Item -Path $ScvmmSetupDest -Destination "D:\SCVMM2025" -ToSession $session -Recurse -Force
 
 # Get service account passwords from Key Vault
-$sqlSvcPw   = az keyvault secret show --vault-name $KVName --subscription $KVSubscription `
+$sqlSvcPw = az keyvault secret show --vault-name $KVName --subscription $KVSubscription `
     --name 'svc-sql-scvmm-password' --query value -o tsv
 $scvmmSvcPw = az keyvault secret show --vault-name $KVName --subscription $KVSubscription `
     --name 'svc-scvmm-svc-password' --query value -o tsv
@@ -99,14 +99,15 @@ Invoke-Command -Session $session -ArgumentList $SqlISO, $DomainFqdn, $sqlSvcPw, 
     $scvmmSvc = Get-Service -Name SCVMMService -ErrorAction SilentlyContinue
     if ($scvmmSvc) {
         Write-Host "  ✅ SCVMM Service: $($scvmmSvc.Status)"
-    } else {
+    }
+    else {
         Write-Warning "SCVMM service not found — check C:\ProgramData\VMMLogs for errors"
     }
 
     # Create library share
     New-Item -ItemType Directory -Path 'E:\SCVMMLibrary' -Force | Out-Null
     New-SmbShare -Name 'SCVMMLibrary' -Path 'E:\SCVMMLibrary' `
-        -FullAccess 'AZRL\Domain Admins','AZRL\svc-scvmm-svc' -ErrorAction SilentlyContinue
+        -FullAccess 'AZRL\Domain Admins', 'AZRL\svc-scvmm-svc' -ErrorAction SilentlyContinue
     Write-Host "  ✅ SCVMM library share created: \\hvscvmm01\SCVMMLibrary"
 }
 

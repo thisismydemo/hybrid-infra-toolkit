@@ -191,7 +191,20 @@ jobs:
             REG_TOKEN=$(gh api -X POST "/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token" --jq .token)
           fi
           if [ -z "$REG_TOKEN" ]; then
-            echo "ERROR: Failed to get runner registration token" && exit 1
+            echo "WARNING: Could not get runner registration token (token may lack admin scope)."
+            echo "Checking if runner is already registered and running on the VM..."
+            RUNNER_CHECK=$(az vm run-command invoke \
+              --subscription "$SUBSCRIPTION_ID" \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --command-id RunPowerShellScript \
+              --scripts "if (Get-Service -Name 'actions.runner.*' -ErrorAction SilentlyContinue) { Write-Host 'RUNNER_PRESENT' }" \
+              --query "value[0].message" -o tsv 2>/dev/null || true)
+            if echo "$RUNNER_CHECK" | grep -q 'RUNNER_PRESENT'; then
+              echo "Runner is already installed and running on the VM — skipping registration."
+              exit 0
+            fi
+            echo "ERROR: Failed to get runner registration token and no runner found on VM." && exit 1
           fi
           az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \

@@ -15,31 +15,31 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: "Configure Active Directory objects (OUs, service accounts, groups, DNS forwarder)"
-        shell: pwsh
+        shell: powershell
         run: src/deployments/powershell-azurecli/configure/05-configure-ad.ps1
 
       - name: "Configure iSCSI target and LUNs on hviscsi01"
-        shell: pwsh
+        shell: powershell
         run: src/deployments/powershell-azurecli/configure/01-configure-iscsi.ps1
 
       - name: "Configure iSCSI initiators on cluster nodes"
-        shell: pwsh
+        shell: powershell
         run: src/deployments/powershell-azurecli/configure/02-configure-iscsi-initiators.ps1
 
       - name: "Configure Network ATC intents on cluster nodes (SET switch)"
-        shell: pwsh
+        shell: powershell
         run: src/deployments/powershell-azurecli/configure/08-configure-network-atc.ps1
 
       - name: "Create and configure failover cluster (hvlab-clus01)"
-        shell: pwsh
+        shell: powershell
         run: src/deployments/powershell-azurecli/configure/03-configure-cluster.ps1
 
       - name: "Configure DHCP scopes on hvdc01 (Mgmt + Workload)"
-        shell: pwsh
+        shell: powershell
         run: src/deployments/powershell-azurecli/configure/07-configure-dhcp.ps1
 
       - name: Summary
-        shell: pwsh
+        shell: powershell
         run: |
           "## ✅ Failover Cluster Configured" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           "" | Out-File $env:GITHUB_STEP_SUMMARY -Append

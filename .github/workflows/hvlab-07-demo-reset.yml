@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: "Restore all VMs to checkpoint"
-        shell: pwsh
+        shell: powershell
         run: |
           $checkpointName = '${{ github.event.inputs.checkpoint_name }}'
           Write-Host "Restoring all nested VMs to checkpoint: $checkpointName" -ForegroundColor Cyan

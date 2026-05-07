@@ -16,11 +16,11 @@ param location string = 'eastus'
 
 @description('VM size — must support nested virtualization. M32ms = 32 vCPU / 875 GB / fits MS Family quota')
 @allowed([
-  'Standard_M32ms'        // preferred: 32 vCPU / 875 GB RAM — fits 40 vCPU MS Family quota
-  'Standard_E48ds_v5'     // fallback: 48 vCPU / 384 GB — fits 50 vCPU E-series quota
-  'Standard_E104ids_v5'   // ideal if quota raised: 104 vCPU / 672 GB / isolated / local NVMe
-  'Standard_E96ds_v5'     // 96 vCPU / 672 GB
-  'Standard_E64ds_v5'     // 64 vCPU / 512 GB
+  'Standard_M32ms' // preferred: 32 vCPU / 875 GB RAM — fits 40 vCPU MS Family quota
+  'Standard_E48ds_v5' // fallback: 48 vCPU / 384 GB — fits 50 vCPU E-series quota
+  'Standard_E104ids_v5' // ideal if quota raised: 104 vCPU / 672 GB / isolated / local NVMe
+  'Standard_E96ds_v5' // 96 vCPU / 672 GB
+  'Standard_E64ds_v5' // 64 vCPU / 512 GB
 ])
 param vmSize string = 'Standard_M32ms'
 
@@ -32,22 +32,22 @@ param adminUsername string = 'hvlabadmin'
 param adminPassword string
 
 // Resource name variables (CAF)
-var vmName           = 'vm-hvlab-host01-eus-01'
-var nicName          = 'nic-hvlab-host01-eus-01'
-var pipName          = 'pip-hvlab-host01-eus-01'
-var nsgName          = 'nsg-hvlab-host01-eus-01'
-var vnetName         = 'vnet-hvlab-mms26-eus-01'
-var subnetName       = 'snet-hvlab-mms26-eus-01'
-var osDiskName       = 'disk-hvlab-host01-os-eus-01'
-var identityName     = 'mi-hvlab-host01-eus-01'
-var storageAcctName  = 'sthvlabwitness01'   // Cloud Witness — no hyphens, max 24 chars
+var vmName = 'vm-hvlab-host01-eus-01'
+var nicName = 'nic-hvlab-host01-eus-01'
+var pipName = 'pip-hvlab-host01-eus-01'
+var nsgName = 'nsg-hvlab-host01-eus-01'
+var vnetName = 'vnet-hvlab-mms26-eus-01'
+var subnetName = 'snet-hvlab-mms26-eus-01'
+var osDiskName = 'disk-hvlab-host01-os-eus-01'
+var identityName = 'mi-hvlab-host01-eus-01'
+var storageAcctName = 'sthvlabwitness01' // Cloud Witness — no hyphens, max 24 chars
 
 // IP allocation (10.250.2.0/24 — local VNet in deploy sub, no cross-sub reference)
-var vnetAddressPrefix   = '10.250.2.0/24'
+var vnetAddressPrefix = '10.250.2.0/24'
 var subnetAddressPrefix = '10.250.2.0/27'
-var primaryIp     = '10.250.2.5'    // host VM
-var wacIp         = '10.250.2.6'    // secondary → hvwac01 nested VM
-var scvmmIp       = '10.250.2.7'    // secondary → hvscvmm01 nested VM
+var primaryIp = '10.250.2.5' // host VM
+var wacIp = '10.250.2.6' // secondary → hvwac01 nested VM
+var scvmmIp = '10.250.2.7' // secondary → hvscvmm01 nested VM
 
 var tags = {
   environment: 'lab'
@@ -67,7 +67,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
   location: location
   tags: tags
   properties: {
-    addressSpace: { addressPrefixes: [ vnetAddressPrefix ] }
+    addressSpace: { addressPrefixes: [vnetAddressPrefix] }
     subnets: [
       {
         name: subnetName
@@ -79,7 +79,6 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
     ]
   }
 }
-
 
 // =============================================================================
 // User-assigned Managed Identity
@@ -328,10 +327,10 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
 // =============================================================================
 // Outputs
 // =============================================================================
-output vmResourceId       string = vm.id
-output vmName             string = vm.name
-output publicIpAddress    string = pip.properties.ipAddress
-output privateIpAddress   string = primaryIp
-output identityClientId   string = identity.properties.clientId
+output vmResourceId string = vm.id
+output vmName string = vm.name
+output publicIpAddress string = pip.properties.ipAddress
+output privateIpAddress string = primaryIp
+output identityClientId string = identity.properties.clientId
 output identityPrincipalId string = identity.properties.principalId
-output storageAccountName  string = storageAccount.name
+output storageAccountName string = storageAccount.name

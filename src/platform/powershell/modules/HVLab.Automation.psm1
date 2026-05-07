@@ -16,19 +16,19 @@ function Get-HVLabStorageRoot {
     }
 
     $storageVolume = Get-Volume -FileSystemLabel 'HyperVStorage' -ErrorAction SilentlyContinue |
-        Where-Object { $_.DriveLetter } |
-        Select-Object -First 1
+    Where-Object { $_.DriveLetter } |
+    Select-Object -First 1
     if ($storageVolume) {
         $candidates.Add("$($storageVolume.DriveLetter):\HyperVStorage")
     }
 
     foreach ($path in @(
-        'S:\HyperVStorage',
-        'D:\HyperVStorage',
-        'F:\HyperVStorage',
-        'E:\HyperVStorage',
-        'C:\HyperVStorage'
-    )) {
+            'S:\HyperVStorage',
+            'D:\HyperVStorage',
+            'F:\HyperVStorage',
+            'E:\HyperVStorage',
+            'C:\HyperVStorage'
+        )) {
         $candidates.Add($path)
     }
 
@@ -111,11 +111,11 @@ function Get-HVLabHostDnsServers {
     param()
 
     $configs = Get-DnsClientServerAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-        Where-Object {
-            $_.ServerAddresses -and
-            $_.InterfaceAlias -notlike 'vEthernet*' -and
-            $_.InterfaceAlias -notlike 'Loopback*'
-        }
+    Where-Object {
+        $_.ServerAddresses -and
+        $_.InterfaceAlias -notlike 'vEthernet*' -and
+        $_.InterfaceAlias -notlike 'Loopback*'
+    }
 
     foreach ($config in $configs) {
         if ($config.ServerAddresses.Count -gt 0) {
@@ -335,7 +335,8 @@ function New-HVLabWindowsVhd {
             $dismLog = Join-Path $env:TEMP 'hvlab-expand-image.log'
             if ($imagePath -like '*.wim') {
                 Expand-WindowsImage -ImagePath $imagePath -Index $resolvedIndex -ApplyPath "$osDrive`:" -CheckIntegrity -Verify -LogPath $dismLog | Out-Null
-            } else {
+            }
+            else {
                 & dism.exe /Apply-Image /ImageFile:$imagePath /Index:$resolvedIndex /ApplyDir:"$osDrive`:\" /CheckIntegrity | Out-Null
             }
 
@@ -345,10 +346,10 @@ function New-HVLabWindowsVhd {
             New-Item -Path $setupScriptsPath -ItemType Directory -Force | Out-Null
 
             New-HVLabOfflineUnattendXml -ComputerName $ComputerName -AdminPassword $AdminPassword |
-                Set-Content -Path (Join-Path $pantherPath 'Unattend.xml') -Encoding UTF8
+            Set-Content -Path (Join-Path $pantherPath 'Unattend.xml') -Encoding UTF8
 
             New-HVLabFirstBootScript |
-                Set-Content -Path (Join-Path $setupScriptsPath 'HVLab-FirstBoot.ps1') -Encoding UTF8
+            Set-Content -Path (Join-Path $setupScriptsPath 'HVLab-FirstBoot.ps1') -Encoding UTF8
 
             @(
                 '@echo off',
@@ -417,7 +418,8 @@ function New-HVLabVm {
                 Add-VMHardDiskDrive -VMName $Name -Path $dataVhdPath | Out-Null
             }
         }
-    } else {
+    }
+    else {
         $vm = $existingVm
     }
 
@@ -513,13 +515,13 @@ function Initialize-HVLabGuestNetwork {
     foreach ($adapterConfiguration in $AdapterConfigurations) {
         $vmAdapter = Get-VMNetworkAdapter -VMName $VMName -Name $adapterConfiguration.Name -ErrorAction Stop
         $adapterData += [PSCustomObject]@{
-            HostName   = $adapterConfiguration.Name
-            GuestName  = $adapterConfiguration.GuestName
-            MacAddress = $vmAdapter.MacAddress
-            IPAddress  = $adapterConfiguration.IPAddress
+            HostName     = $adapterConfiguration.Name
+            GuestName    = $adapterConfiguration.GuestName
+            MacAddress   = $vmAdapter.MacAddress
+            IPAddress    = $adapterConfiguration.IPAddress
             PrefixLength = $adapterConfiguration.PrefixLength
-            Gateway    = $adapterConfiguration.Gateway
-            DnsServers = $adapterConfiguration.DnsServers
+            Gateway      = $adapterConfiguration.Gateway
+            DnsServers   = $adapterConfiguration.DnsServers
         }
     }
 
@@ -534,8 +536,8 @@ function Initialize-HVLabGuestNetwork {
         foreach ($adapterConfiguration in $adapterConfigurations) {
             $targetMac = ($adapterConfiguration.MacAddress -replace '[:-]', '').ToUpperInvariant()
             $guestAdapter = $guestAdapters |
-                Where-Object { (($_.MacAddress -replace '-', '').ToUpperInvariant()) -eq $targetMac } |
-                Select-Object -First 1
+            Where-Object { (($_.MacAddress -replace '-', '').ToUpperInvariant()) -eq $targetMac } |
+            Select-Object -First 1
 
             if (-not $guestAdapter) {
                 throw "Unable to find guest adapter with MAC '$($adapterConfiguration.MacAddress)'."
@@ -551,11 +553,11 @@ function Initialize-HVLabGuestNetwork {
 
             if ($adapterConfiguration.IPAddress) {
                 $existing = Get-NetIPAddress -InterfaceAlias $currentName -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-                    Where-Object { $_.IPAddress -eq $adapterConfiguration.IPAddress }
+                Where-Object { $_.IPAddress -eq $adapterConfiguration.IPAddress }
                 if (-not $existing) {
                     Get-NetIPAddress -InterfaceAlias $currentName -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-                        Where-Object { $_.PrefixOrigin -ne 'WellKnown' } |
-                        ForEach-Object { Remove-NetIPAddress -InputObject $_ -Confirm:$false -ErrorAction SilentlyContinue }
+                    Where-Object { $_.PrefixOrigin -ne 'WellKnown' } |
+                    ForEach-Object { Remove-NetIPAddress -InputObject $_ -Confirm:$false -ErrorAction SilentlyContinue }
 
                     $ipParams = @{
                         InterfaceAlias = $currentName

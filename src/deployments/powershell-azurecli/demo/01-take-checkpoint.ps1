@@ -17,7 +17,7 @@ param(
     [string[]]$VMOrder = @(
         'hvdc01',      # DC first — must be running when nodes restore
         'hviscsi01',   # iSCSI second — storage must be available for nodes
-        'hvnode01','hvnode02','hvnode03','hvnode04',
+        'hvnode01', 'hvnode02', 'hvnode03', 'hvnode04',
         'hvwac01',
         'hvscvmm01'
     ),
@@ -26,7 +26,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
-$fullName  = "$CheckpointName ($timestamp)"
+$fullName = "$CheckpointName ($timestamp)"
 
 Write-Host "=== Taking checkpoint '$fullName' on all nested VMs ===" -ForegroundColor Cyan
 
@@ -53,8 +53,9 @@ foreach ($vmName in $VMOrder) {
         Checkpoint-VM -Name $vmName -SnapshotName $fullName
         $snap = Get-VMSnapshot -VM $vm | Where-Object { $_.Name -eq $fullName }
         Write-Host "  ✅ $vmName — '$($snap.Name)' @ $($snap.CreationTime)" -ForegroundColor Green
-        $results += [PSCustomObject]@{ VM=$vmName; Checkpoint=$snap.Name; Created=$snap.CreationTime }
-    } else {
+        $results += [PSCustomObject]@{ VM = $vmName; Checkpoint = $snap.Name; Created = $snap.CreationTime }
+    }
+    else {
         Write-Host "  [WHATIF] Would checkpoint: $vmName → '$fullName'" -ForegroundColor Magenta
     }
 }

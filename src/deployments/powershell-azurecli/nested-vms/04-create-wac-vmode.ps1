@@ -40,13 +40,11 @@ Write-Host "=== Creating $VMName (WAC virtualization mode) ===" -ForegroundColor
 New-HVLabWindowsVhd -IsoPath $ISOPath -VhdPath $osDisk -SizeGB $OSDiskGB -ComputerName $VMName -AdminPassword ($bootstrapCredential.GetNetworkCredential().Password) | Out-Null
 
 New-HVLabVm -Name $VMName -OSVhdPath $osDisk -VmPath $vmPath -MemoryGB $MemoryGB -ProcessorCount $vCPUs -AdapterDefinitions @(
-    @{ Name = 'External'; SwitchName = 'vSwitch-External' },
     @{ Name = 'Mgmt'; SwitchName = 'vSwitch-Mgmt' }
 ) | Out-Null
 
 Initialize-HVLabGuestNetwork -VMName $VMName -Credential $bootstrapCredential -AdapterConfigurations @(
-    @{ Name = 'External'; GuestName = 'External'; IPAddress = $ExternalIP; PrefixLength = $ExternalPrefixLen; Gateway = $ExternalGateway; DnsServers = @($MgmtDnsServer) },
-    @{ Name = 'Mgmt'; GuestName = 'Mgmt'; IPAddress = $MgmtIP; PrefixLength = $MgmtPrefixLen; Gateway = ''; DnsServers = @($MgmtDnsServer) }
+    @{ Name = 'Mgmt'; GuestName = 'Mgmt'; IPAddress = $MgmtIP; PrefixLength = $MgmtPrefixLen; Gateway = $MgmtGateway; DnsServers = @($MgmtDnsServer) }
 )
 
 $domainCredential = New-Object System.Management.Automation.PSCredential(

@@ -15,11 +15,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: "Install WAC Virtualization Mode (WS2025 only)"
-        shell: pwsh
+        shell: powershell
         run: src/deployments/powershell-azurecli/configure/04-configure-wac-vmode.ps1
 
       - name: "Add cluster hosts to WAC vmode"
-        shell: pwsh
+        shell: powershell
         run: |
           # Verify all hosts are visible in WAC vmode
           $hosts = @('hvnode01','hvnode02','hvnode03','hvnode04','hviscsi01','hvdc01')
@@ -27,7 +27,7 @@ jobs:
           Write-Host "Verify connectivity at https://10.250.2.6 (hvwac01 external IP)"
 
       - name: Summary
-        shell: pwsh
+        shell: powershell
         run: |
           "## ✅ WAC Virtualization Mode Configured" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           "" | Out-File $env:GITHUB_STEP_SUMMARY -Append

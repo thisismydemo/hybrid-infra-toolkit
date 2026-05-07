@@ -169,28 +169,11 @@ if (-not $vmmsReady) {
     Start-Sleep -Seconds 30
 }
 
-$mgmtAdapter = Get-NetAdapter | Where-Object {
-    $_.Status -eq 'Up' -and $_.InterfaceDescription -notlike '*Hyper-V*'
-} | Sort-Object -Property LinkSpeed -Descending | Select-Object -First 1
-
-Write-Log "Binding vSwitch-External to adapter: $($mgmtAdapter.Name)"
-$extExists = Invoke-WithTimeout `
-    -ScriptBlock { param($n) Get-VMSwitch -Name $n -ErrorAction SilentlyContinue } `
-    -ArgumentList   'vSwitch-External' `
-    -TimeoutSeconds 20 `
-    -Description    'Get-VMSwitch vSwitch-External'
-if (-not $extExists) {
-    Write-Log "Creating vSwitch-External (or existence check timed out -- attempting create)..."
-    Invoke-WithTimeout `
-        -ScriptBlock { param($name, $nic) New-VMSwitch -Name $name -NetAdapterName $nic -AllowManagementOS $true | Out-Null } `
-        -ArgumentList   'vSwitch-External', $mgmtAdapter.Name `
-        -TimeoutSeconds 300 `
-        -Description    'New-VMSwitch vSwitch-External'
-    Write-Log "vSwitch-External create attempt finished (see WARN above if it timed out)."
-}
-else {
-    Write-Log "vSwitch-External already exists -- skipping."
-}
+# External vSwitch: Azure VMs do not expose a physical NIC to nested Hyper-V --
+# both visible adapters are virtualized (Microsoft Hyper-V Network Adapter and
+# Mellanox SR-IOV VF). New-VMSwitch -NetAdapterName requires a bindable physical
+# NIC and will always fail here. Nested VMs use Internal switches + WinNAT instead.
+Write-Log "Skipping vSwitch-External -- not supported on Azure nested Hyper-V (no bindable physical NIC)." 'WARN'
 
 $internalSwitches = @(
     @{ Name = 'vSwitch-Mgmt'; IP = '172.16.10.1'; Prefix = 24 },
