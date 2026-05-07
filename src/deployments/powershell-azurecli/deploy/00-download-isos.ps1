@@ -11,7 +11,7 @@
 ##############################################################################
 
 param(
-    [string]$ISODir     = 'D:\HyperVStorage\ISOs',
+    [string]$ISODir     = 'S:\HyperVStorage\ISOs',
     [switch]$SkipWS2022,
     [switch]$SkipWS2025,
     [switch]$SkipSQL

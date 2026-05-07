@@ -23,6 +23,7 @@ function Get-HVLabStorageRoot {
     }
 
     foreach ($path in @(
+        'S:\HyperVStorage',
         'D:\HyperVStorage',
         'F:\HyperVStorage',
         'E:\HyperVStorage',
@@ -45,7 +46,7 @@ function Get-HVLabStorageRoot {
         }
     }
 
-    return 'D:\HyperVStorage'
+    return 'S:\HyperVStorage'
 }
 
 function Resolve-HVLabStoragePath {

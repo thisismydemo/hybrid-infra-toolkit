@@ -64,7 +64,7 @@ Write-Host "`n=== Checkpoint Summary ===" -ForegroundColor Cyan
 $results | Format-Table VM, Checkpoint, Created -AutoSize
 
 # Save manifest for restore script
-$manifestPath = "D:\HyperVStorage\checkpoints-$($CheckpointName -replace ' ','-').json"
+$manifestPath = "S:\HyperVStorage\checkpoints-$($CheckpointName -replace ' ','-').json"
 $results | ConvertTo-Json | Out-File -FilePath $manifestPath -Encoding utf8
 Write-Host "Checkpoint manifest saved: $manifestPath"
 

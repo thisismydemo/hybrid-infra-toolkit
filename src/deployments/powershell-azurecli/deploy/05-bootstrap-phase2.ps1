@@ -18,7 +18,7 @@ param(
     [string]$JoinOU = 'OU=hvlab-servers,OU=Servers,OU=MGMT,DC=azrl,DC=mgmt',
     [string]$StoragePoolName = 'HVLabStoragePool',
     [string]$VolumeLabel = 'HyperVStorage',
-    [string]$VolumeLetter = 'D',
+    [string]$VolumeLetter = 'S',
     [string]$NatName = 'HVLabNAT',
     [string]$NatSubnet = '172.16.0.0/12'
 )
@@ -53,31 +53,12 @@ if (Test-Path 'C:\hvlab-phase2-complete.marker') {
 }
 
 # -----------------------------------------------------------------------------
-# 1. Storage Pool -- stripe data disks into one pool + D: volume
+# 1. Storage Pool -- stripe data disks into one pool + S: volume
 # -----------------------------------------------------------------------------
-
-# Azure assigns the temporary (ephemeral) disk to D:\ by default.
-# Reassign it to T:\ so D:\ is free for the HyperVStorage pool.
-$tempVol = Get-Volume -DriveLetter 'D' -ErrorAction SilentlyContinue
-if ($tempVol -and $tempVol.FileSystemLabel -like '*Temp*') {
-    Write-Log "Azure Temporary Storage is on D: (label: '$($tempVol.FileSystemLabel)') -- reassigning to T:"
-
-    # Windows blocks drive letter changes on volumes with a pagefile.
-    # Azure Temporary Storage almost always has a pagefile -- remove it first.
-    $pageFiles = Get-WmiObject -Class Win32_PageFileSetting | Where-Object { $_.Name -like 'D:\*' }
-    if ($pageFiles) {
-        Write-Log "Removing pagefile from D: (required before drive letter change)..."
-        $pageFiles | ForEach-Object { $_.Delete() }
-        Write-Log "Pagefile removed from D:"
-    } else {
-        Write-Log "No pagefile found on D: -- proceeding with drive letter change."
-    }
-
-    Set-Partition -DriveLetter 'D' -NewDriveLetter 'T'
-    Write-Log "Temporary Storage reassigned to T:\"
-} elseif ($tempVol) {
-    Write-Log "D: is in use (label: '$($tempVol.FileSystemLabel)') but does not appear to be Azure Temporary Storage -- leaving as-is."
-}
+# NOTE: The HyperVStorage pool volume is assigned S: to avoid conflicts with
+# Azure Temporary Storage (D:) which always has a pagefile that cannot be
+# released without a reboot. D: is left as-is.
+Write-Log "Storage pool will use $($VolumeLetter): -- Azure Temporary Storage left on D:"
 
 Write-Log "Creating storage pool from data disks..."
 

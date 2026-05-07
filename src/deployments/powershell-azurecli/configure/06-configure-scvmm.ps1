@@ -6,8 +6,8 @@
 
 param(
     [string]$ScvmmServer       = 'hvscvmm01',
-    [string]$SqlISO            = 'D:\HyperVStorage\ISOs\SQL2022Dev.iso',
-    [string]$ScvmmSetupDest    = 'D:\HyperVStorage\SCVMM2025',   # downloaded from blob
+    [string]$SqlISO            = 'S:\HyperVStorage\ISOs\SQL2022Dev.iso',
+    [string]$ScvmmSetupDest    = 'S:\HyperVStorage\SCVMM2025',   # downloaded from blob
     [string]$ScvmmStorageAcct  = 'sthvlabcontent01',
     [string]$DomainFqdn        = 'azrl.mgmt',
     [string]$KVName            = 'kv-tplabs-platform',

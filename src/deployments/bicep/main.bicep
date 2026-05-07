@@ -245,7 +245,7 @@ resource nic 'Microsoft.Network/networkInterfaces@2023-09-01' = {
 // =============================================================================
 // Host VM — Standard_E96ds_v5: 96 vCPU / 672 GB RAM (nested virtualization)
 // OS: Windows Server 2022 Datacenter (Gen2)
-// Data disks: 4 × 1 TB Premium SSD (striped via Storage Spaces = D:\HyperVStorage)
+// Data disks: 4 x 1 TB Premium SSD (striped via Storage Spaces = S:\HyperVStorage)
 // =============================================================================
 resource vm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
   name: vmName
