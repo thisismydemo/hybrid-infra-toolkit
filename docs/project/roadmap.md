@@ -41,6 +41,8 @@ This must be designed before any of the items below ship.
 - replace hard-coded implementation assumptions with manifest-backed values
 - keep all deployment categories aligned to the same shared model
 
+> **Non-negotiable constraint for all Part II work:** no hardcoded values. Every environment-specific value (tenant ID, subscription ID, resource name, IP, domain name, service account, secret) must come from `configs/variables/variables.yml`, a Bicep parameter file, a workflow input/variable, or a Key Vault secret URI. Part I code containing hardcoded values must be refactored when the Part II item that touches that file is implemented.
+
 ### Multi-Toolchain Support
 
 The repository is structured to support multiple deployment toolchains. Implementations beyond the initial Bicep + PowerShell baseline are roadmap:

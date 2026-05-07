@@ -233,3 +233,7 @@ Part II is the full vision for the toolkit: feature requests, customizations, ab
 **Part II is tracked in [docs/project/roadmap.md](../docs/project/roadmap.md).**
 
 Do not start Part II work until Part I exit criteria are met.
+
+### Part II Non-Negotiable Constraints
+
+- **No hardcoded values anywhere.** Every value that varies by environment, subscription, region, naming convention, credential, or user preference must come from `configs/variables/variables.yml`, a Bicep parameter file, a GitHub Actions input/variable, or a Key Vault secret URI. Tenant IDs, subscription IDs, resource names, IP addresses, domain names, service account names, and secrets may not be embedded as literals in scripts, workflows, or Bicep. This applies to all new code written in Part II. Part I code that was copied over and contains hardcoded values must be refactored as part of whichever Part II item touches that file — not before, not as a separate sweep.
