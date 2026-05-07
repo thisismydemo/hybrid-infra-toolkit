@@ -53,22 +53,34 @@ jobs:
             echo "Phase 1 ran — VM will reboot."
           fi
 
-      - name: "Wait for reboot (5 minutes)"
+      - name: "Restart VM to activate Windows features"
         if: steps.phase1.outputs.needs_reboot == 'true'
         run: |
-          echo "Waiting 5 minutes for VM to reboot and come back online..."
-          sleep 300
-
-      - name: "Wait for VM to be running"
-        if: steps.phase1.outputs.needs_reboot == 'true'
-        run: |
-          az vm wait \
+          echo "Issuing VM restart..."
+          az vm restart \
             --subscription "$SUBSCRIPTION_ID" \
             --resource-group "$RESOURCE_GROUP" \
-            --name "$VM_NAME" \
-            --updated \
-            --timeout 300
-          echo "VM is back online."
+            --name "$VM_NAME"
+          echo "VM restart complete."
+
+      - name: "Wait for VM agent to be ready"
+        if: steps.phase1.outputs.needs_reboot == 'true'
+        run: |
+          echo "Waiting 90 seconds for VM agent to come back online..."
+          sleep 90
+          for i in 1 2 3 4 5; do
+            STATUS=$(az vm get-instance-view \
+              --subscription "$SUBSCRIPTION_ID" \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --query "instanceView.vmAgent.statuses[0].displayStatus" -o tsv 2>/dev/null || echo "unknown")
+            echo "VM agent status: $STATUS"
+            if [ "$STATUS" = "Ready" ]; then
+              echo "VM agent is ready."
+              break
+            fi
+            sleep 30
+          done
 
       # ── Phase 2: Configure Hyper-V ─────────────────────────────────────────
       - name: "Phase 2 — Configure Hyper-V, vSwitches, and WinNAT"
@@ -106,18 +118,23 @@ jobs:
             --output json || true
           echo "ISO download script sent (runs async on VM)."
 
-      # ── Phase 4: Install Azure Arc ─────────────────────────────────────────
-      - name: "Phase 4 — Install Azure Arc Connected Machine Agent"
+      # ── Phase 4: Install GitHub Actions self-hosted runner ────────────────
+      - name: "Phase 4 — Install GitHub Actions self-hosted runner"
         run: |
+          REG_TOKEN=$(gh api -X POST "/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token" --jq .token)
+          if [ -z "$REG_TOKEN" ]; then
+            echo "ERROR: Failed to get runner registration token" && exit 1
+          fi
           az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
             --resource-group "$RESOURCE_GROUP" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts @src/deployments/powershell-azurecli/deploy/07-install-arc.ps1 \
-            --parameters "SubscriptionId=$SUBSCRIPTION_ID" "ResourceGroup=$RESOURCE_GROUP" \
-            --output json || true
-          echo "Arc agent installation script sent."
+            --parameters "RegistrationToken=$REG_TOKEN" \
+            --scripts @src/deployments/powershell-azurecli/deploy/06-bootstrap-phase4-runner.ps1 \
+            --output json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Summary
         run: |
@@ -125,6 +142,5 @@ jobs:
           echo "- Phase 1: Windows features installed (with reboot)" >> $GITHUB_STEP_SUMMARY
           echo "- Phase 2: Hyper-V, vSwitches, and WinNAT configured" >> $GITHUB_STEP_SUMMARY
           echo "- Phase 3: Evaluation ISO downloads initiated" >> $GITHUB_STEP_SUMMARY
-          echo "- Phase 4: Azure Arc agent installation initiated" >> $GITHUB_STEP_SUMMARY
-          echo "- Host domain join intentionally deferred until the lab-local domain exists" >> $GITHUB_STEP_SUMMARY
-          "**Next step:** Run **HVLab 03 — Deploy Nested VMs**" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          echo "- Phase 4: GitHub Actions self-hosted runner installed" >> $GITHUB_STEP_SUMMARY
+          echo "**Next step:** Run **HVLab 02b / 03 — Deploy Nested VMs**" >> $GITHUB_STEP_SUMMARY

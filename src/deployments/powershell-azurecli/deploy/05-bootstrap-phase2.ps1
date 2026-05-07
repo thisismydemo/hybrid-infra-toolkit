@@ -66,27 +66,33 @@ if ($disks.Count -lt 2) {
     Write-Log "Not enough disks to pool (need at least 2, found $($disks.Count)). Skipping pool creation." 'WARN'
 }
 else {
-    $subsystem = Get-StorageSubSystem | Where-Object { $_.FriendlyName -like '*Windows*' }
-    $pool = New-StoragePool `
-        -FriendlyName $StoragePoolName `
-        -StorageSubSystemUniqueId $subsystem.UniqueId `
-        -PhysicalDisks $disks `
-        -ResiliencySettingNameDefault Simple
+    $existingPool = Get-StoragePool -FriendlyName $StoragePoolName -ErrorAction SilentlyContinue
+    if ($existingPool) {
+        Write-Log "Storage pool '$StoragePoolName' already exists — skipping creation."
+    }
+    else {
+        $subsystem = Get-StorageSubSystem | Where-Object { $_.FriendlyName -like '*Windows*' }
+        $pool = New-StoragePool `
+            -FriendlyName $StoragePoolName `
+            -StorageSubSystemUniqueId $subsystem.UniqueId `
+            -PhysicalDisks $disks `
+            -ResiliencySettingNameDefault Simple
 
-    Write-Log "Storage pool '$StoragePoolName' created."
+        Write-Log "Storage pool '$StoragePoolName' created."
 
-    $vdisk = New-VirtualDisk `
-        -StoragePoolFriendlyName $StoragePoolName `
-        -FriendlyName 'HVLabVDisk' `
-        -UseMaximumSize `
-        -ResiliencySettingName Simple `
-        -ProvisioningType Fixed
+        $vdisk = New-VirtualDisk `
+            -StoragePoolFriendlyName $StoragePoolName `
+            -FriendlyName 'HVLabVDisk' `
+            -UseMaximumSize `
+            -ResiliencySettingName Simple `
+            -ProvisioningType Fixed
 
-    $vdisk | Initialize-Disk -PartitionStyle GPT -PassThru |
-    New-Partition -DriveLetter $VolumeLetter -UseMaximumSize |
-    Format-Volume -FileSystem NTFS -NewFileSystemLabel $VolumeLabel -Confirm:$false | Out-Null
+        $vdisk | Initialize-Disk -PartitionStyle GPT -PassThru |
+        New-Partition -DriveLetter $VolumeLetter -UseMaximumSize |
+        Format-Volume -FileSystem NTFS -NewFileSystemLabel $VolumeLabel -Confirm:$false | Out-Null
 
-    Write-Log "Volume $($VolumeLetter):\ created and formatted as NTFS ($VolumeLabel)."
+        Write-Log "Volume $($VolumeLetter):\ created and formatted as NTFS ($VolumeLabel)."
+    }
 }
 
 $dirs = @(
@@ -171,8 +177,8 @@ else {
     Add-Computer -DomainName $DomainFqdn -Credential $credential `
         -OUPath $JoinOU -Restart:$false -Force
     Write-Log "Domain join initiated. A reboot is required to complete."
-    New-Item -Path 'C:\hvlab-phase2-complete.marker' -ItemType File -Force | Out-Null
-    Write-Log "Phase 2 complete marker created."
 }
 
+New-Item -Path 'C:\hvlab-phase2-complete.marker' -ItemType File -Force | Out-Null
+Write-Log "Phase 2 complete marker created."
 Write-Log "=== Phase 2 Complete ==="

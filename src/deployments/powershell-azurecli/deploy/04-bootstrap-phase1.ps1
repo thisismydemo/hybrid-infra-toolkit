@@ -76,6 +76,8 @@ Invoke-WebRequest -Uri $msiUrl -OutFile $msiPath -UseBasicParsing
 Start-Process msiexec.exe -ArgumentList "/i `"$msiPath`" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1" -Wait -NoNewWindow
 Write-Log "PowerShell 7 installed."
 
-Write-Log "Phase 1 complete. Rebooting in 15 seconds..."
-Start-Sleep -Seconds 15
+Write-Log "Phase 1 complete. Triggering reboot via shutdown command..."
+# Use shutdown.exe so the run-command can return before the reboot happens
+& shutdown.exe /r /t 20 /c "HVLab Phase 1 reboot" | Out-Null
+Write-Log "Reboot scheduled in 20 seconds."
 Restart-Computer -Force
