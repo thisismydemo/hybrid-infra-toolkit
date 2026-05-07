@@ -1,13 +1,10 @@
 name: "HVLab 01 — Deploy Azure Infrastructure"
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/hvlab-01-deploy-azure.yml'
-      - 'src/**'
-      - 'configs/**'
+  workflow_run:
+    workflows: ["HVLab 00 — Repo Preflight"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       location:
@@ -40,6 +37,7 @@ permissions:
 jobs:
   preflight:
     name: Validate repo before deployment
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
