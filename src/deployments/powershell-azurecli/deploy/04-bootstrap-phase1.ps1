@@ -18,6 +18,13 @@ function Write-Log {
 
 Write-Log "=== HV-Lab Bootstrap Phase 1 — Windows Features ==="
 
+# Idempotency check — skip reboot if already installed
+$hvState = (Get-WindowsFeature -Name 'Hyper-V').InstallState
+if ($hvState -eq 'Installed') {
+    Write-Log "Hyper-V already installed — Phase 1 skipped (no reboot)."
+    exit 0
+}
+
 $features = @(
     'Hyper-V',
     'Hyper-V-PowerShell',
@@ -54,7 +61,7 @@ Set-Content -Path $taskScript -Value @'
 New-Item -Path 'C:\hvlab-phase1-complete.marker' -ItemType File -Force
 '@
 
-$action  = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File $taskScript"
+$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File $taskScript"
 $trigger = New-ScheduledTaskTrigger -AtStartup
 Register-ScheduledTask -TaskName 'HVLab-Phase1-Complete' -Action $action -Trigger $trigger `
     -RunLevel Highest -User 'SYSTEM' -Force | Out-Null
@@ -62,8 +69,8 @@ Register-ScheduledTask -TaskName 'HVLab-Phase1-Complete' -Action $action -Trigge
 # Install PowerShell 7 (required by GitHub Actions self-hosted runner — shell: pwsh)
 Write-Log "Installing PowerShell 7..."
 $psVersion = '7.4.6'
-$msiUrl    = "https://github.com/PowerShell/PowerShell/releases/download/v$psVersion/PowerShell-$psVersion-win-x64.msi"
-$msiPath   = 'C:\Temp\PowerShell7.msi'
+$msiUrl = "https://github.com/PowerShell/PowerShell/releases/download/v$psVersion/PowerShell-$psVersion-win-x64.msi"
+$msiPath = 'C:\Temp\PowerShell7.msi'
 New-Item -ItemType Directory -Path 'C:\Temp' -Force | Out-Null
 Invoke-WebRequest -Uri $msiUrl -OutFile $msiPath -UseBasicParsing
 Start-Process msiexec.exe -ArgumentList "/i `"$msiPath`" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1" -Wait -NoNewWindow

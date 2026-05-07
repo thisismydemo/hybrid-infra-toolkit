@@ -12,15 +12,15 @@
 ##############################################################################
 
 param(
-    [string]$DomainFqdn          = 'azrl.mgmt',
-    [string]$DomainJoinUser      = 'svc-hvlab-deploy',
+    [string]$DomainFqdn = 'azrl.mgmt',
+    [string]$DomainJoinUser = 'svc-hvlab-deploy',
     [string]$DomainJoinPassword,
-    [string]$JoinOU              = 'OU=hvlab-servers,OU=Servers,OU=MGMT,DC=azrl,DC=mgmt',
-    [string]$StoragePoolName     = 'HVLabStoragePool',
-    [string]$VolumeLabel         = 'HyperVStorage',
-    [string]$VolumeLetter        = 'D',
-    [string]$NatName             = 'HVLabNAT',
-    [string]$NatSubnet           = '172.16.0.0/12'
+    [string]$JoinOU = 'OU=hvlab-servers,OU=Servers,OU=MGMT,DC=azrl,DC=mgmt',
+    [string]$StoragePoolName = 'HVLabStoragePool',
+    [string]$VolumeLabel = 'HyperVStorage',
+    [string]$VolumeLetter = 'D',
+    [string]$NatName = 'HVLabNAT',
+    [string]$NatSubnet = '172.16.0.0/12'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,6 +46,12 @@ function New-SecureStringValue {
 
 Write-Log "=== HV-Lab Bootstrap Phase 2 — Hyper-V Configuration ==="
 
+# Idempotency check — skip if Phase 2 already completed
+if (Test-Path 'C:\hvlab-phase2-complete.marker') {
+    Write-Log "Phase 2 skipped — already complete (marker found)."
+    exit 0
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Storage Pool — stripe data disks into one pool + D: volume
 # ─────────────────────────────────────────────────────────────────────────────
@@ -58,7 +64,8 @@ Write-Log "Found $($disks.Count) poolable disks."
 
 if ($disks.Count -lt 2) {
     Write-Log "Not enough disks to pool (need at least 2, found $($disks.Count)). Skipping pool creation." 'WARN'
-} else {
+}
+else {
     $subsystem = Get-StorageSubSystem | Where-Object { $_.FriendlyName -like '*Windows*' }
     $pool = New-StoragePool `
         -FriendlyName $StoragePoolName `
@@ -76,8 +83,8 @@ if ($disks.Count -lt 2) {
         -ProvisioningType Fixed
 
     $vdisk | Initialize-Disk -PartitionStyle GPT -PassThru |
-        New-Partition -DriveLetter $VolumeLetter -UseMaximumSize |
-        Format-Volume -FileSystem NTFS -NewFileSystemLabel $VolumeLabel -Confirm:$false | Out-Null
+    New-Partition -DriveLetter $VolumeLetter -UseMaximumSize |
+    Format-Volume -FileSystem NTFS -NewFileSystemLabel $VolumeLabel -Confirm:$false | Out-Null
 
     Write-Log "Volume $($VolumeLetter):\ created and formatted as NTFS ($VolumeLabel)."
 }
@@ -107,11 +114,11 @@ New-VMSwitch -Name 'vSwitch-External' -NetAdapterName $mgmtAdapter.Name `
     -ErrorAction SilentlyContinue | Out-Null
 
 $internalSwitches = @(
-    @{ Name = 'vSwitch-Mgmt';      IP = '172.16.10.1'; Prefix = 24 },
+    @{ Name = 'vSwitch-Mgmt'; IP = '172.16.10.1'; Prefix = 24 },
     @{ Name = 'vSwitch-Migration'; IP = '172.16.20.1'; Prefix = 24 },
-    @{ Name = 'vSwitch-Storage';   IP = '172.16.30.1'; Prefix = 24 },
+    @{ Name = 'vSwitch-Storage'; IP = '172.16.30.1'; Prefix = 24 },
     @{ Name = 'vSwitch-Heartbeat'; IP = '172.16.40.1'; Prefix = 24 },
-    @{ Name = 'vSwitch-Workload';  IP = '172.16.50.1'; Prefix = 24 }
+    @{ Name = 'vSwitch-Workload'; IP = '172.16.50.1'; Prefix = 24 }
 )
 
 foreach ($sw in $internalSwitches) {
@@ -145,7 +152,7 @@ Write-Log "  Nested VMs must configure their vNICs with these IPs for this to wo
 # ─────────────────────────────────────────────────────────────────────────────
 Write-Log "Configuring Hyper-V default VM and VHD paths..."
 Set-VMHost -VirtualMachinePath "$($VolumeLetter):\HyperVStorage\VMs" `
-           -VirtualHardDiskPath "$($VolumeLetter):\HyperVStorage\VHDs"
+    -VirtualHardDiskPath "$($VolumeLetter):\HyperVStorage\VHDs"
 Set-VMHost -EnableEnhancedSessionMode $true
 Write-Log "Hyper-V paths and enhanced session mode configured."
 
@@ -155,7 +162,8 @@ Write-Log "Hyper-V paths and enhanced session mode configured."
 Write-Log "Domain join step for $DomainFqdn..."
 if (-not $DomainJoinPassword) {
     Write-Log "DomainJoinPassword not provided — skipping domain join until the lab-local domain is ready." 'WARN'
-} else {
+}
+else {
     $securePassword = New-SecureStringValue -Value $DomainJoinPassword
     $credential = New-Object System.Management.Automation.PSCredential(
         "$DomainJoinUser@$DomainFqdn", $securePassword)

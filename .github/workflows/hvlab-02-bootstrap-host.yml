@@ -33,24 +33,34 @@ jobs:
           subscription-id: ${{ env.SUBSCRIPTION_ID }}
 
       # ── Phase 1: Install Windows Features ──────────────────────────────────
-      - name: "Phase 1 — Install Windows features (will reboot)"
+      - name: "Phase 1 — Install Windows features (will reboot if needed)"
+        id: phase1
         run: |
           SCRIPT=$(cat src/deployments/powershell-azurecli/deploy/04-bootstrap-phase1.ps1 | base64 -w 0)
-          az vm run-command invoke \
+          OUTPUT=$(az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
             --resource-group "$RESOURCE_GROUP" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
             --scripts "powershell -EncodedCommand $SCRIPT" \
-            --output json
-          echo "Phase 1 script sent — VM will reboot."
+            --output json)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -q 'Phase 1 skipped'; then
+            echo "needs_reboot=false" >> $GITHUB_OUTPUT
+            echo "Phase 1 already done — skipping reboot wait."
+          else
+            echo "needs_reboot=true" >> $GITHUB_OUTPUT
+            echo "Phase 1 ran — VM will reboot."
+          fi
 
       - name: "Wait for reboot (5 minutes)"
+        if: steps.phase1.outputs.needs_reboot == 'true'
         run: |
           echo "Waiting 5 minutes for VM to reboot and come back online..."
           sleep 300
 
       - name: "Wait for VM to be running"
+        if: steps.phase1.outputs.needs_reboot == 'true'
         run: |
           az vm wait \
             --subscription "$SUBSCRIPTION_ID" \
@@ -62,17 +72,26 @@ jobs:
 
       # ── Phase 2: Configure Hyper-V ─────────────────────────────────────────
       - name: "Phase 2 — Configure Hyper-V, vSwitches, and WinNAT"
+        id: phase2
         run: |
-          az vm run-command invoke \
+          OUTPUT=$(az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
             --resource-group "$RESOURCE_GROUP" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
             --scripts @src/deployments/powershell-azurecli/deploy/05-bootstrap-phase2.ps1 \
-            --output json
-          echo "Phase 2 complete."
+            --output json)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -q 'Phase 2 skipped'; then
+            echo "Phase 2 already done — skipping settle wait."
+            echo "needs_settle=false" >> $GITHUB_OUTPUT
+          else
+            echo "Phase 2 complete."
+            echo "needs_settle=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: "Wait for host services to settle"
+        if: steps.phase2.outputs.needs_settle == 'true'
         run: sleep 120
 
       # ── Phase 3: Download ISOs ─────────────────────────────────────────────
