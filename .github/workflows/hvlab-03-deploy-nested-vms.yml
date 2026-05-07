@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Setup - verify runner identity and Hyper-V access"
+      - name: "Setup - verify runner identity, Hyper-V access, and ISOs"
         shell: powershell
         run: |
           $who = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -27,6 +27,30 @@ jobs:
           )).IsInRole("Hyper-V Administrators")
           Write-Host "In Hyper-V Administrators: $hvGroups"
           Get-VMHost -EA SilentlyContinue | Select-Object Name,VirtualMachinePath,VirtualHardDiskPath | Format-List
+
+          # Ensure WS2025.iso is present and not a stub (must be > 100 MB)
+          $isoPath = 'D:\HyperVStorage\ISOs\WS2025.iso'
+          $isoDir  = 'D:\HyperVStorage\ISOs'
+          New-Item -ItemType Directory -Path $isoDir -Force | Out-Null
+          $existing = Get-Item $isoPath -EA SilentlyContinue
+          if ($existing -and $existing.Length -gt 100MB) {
+            Write-Host "WS2025.iso OK ($([math]::Round($existing.Length/1GB,2)) GB)"
+          } else {
+            if ($existing) { Remove-Item $isoPath -Force }
+            Write-Host "Downloading WS2025 Evaluation ISO (~5.4 GB) via BITS..."
+            $ProgressPreference = 'SilentlyContinue'
+            try {
+              Start-BitsTransfer -Source 'https://go.microsoft.com/fwlink/?linkid=2293512' `
+                -Destination $isoPath -DisplayName 'WS2025 Eval'
+            } catch {
+              Write-Warning "BITS failed, trying Invoke-WebRequest: $_"
+              Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2293512' `
+                -OutFile $isoPath -UseBasicParsing -MaximumRedirection 10
+            }
+            $sz = [math]::Round((Get-Item $isoPath).Length/1GB, 2)
+            Write-Host "WS2025.iso downloaded: $sz GB"
+            if ($sz -lt 1) { throw "ISO download appears incomplete ($sz GB)" }
+          }
           Write-Host "Setup OK"
 
       - name: "Create forest root DC (hvdc01 - azrl.mgmt)"
