@@ -111,28 +111,44 @@ jobs:
           rm -f "$PEM_FILE"
 
           # Get installation ID for thisismydemo org
-          INSTALL_ID=$(curl -s \
+          INSTALLS_RAW=$(curl -s \
             -H "Authorization: Bearer $JWT" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/app/installations \
-            | jq -r '.[] | select(.account.login=="thisismydemo") | .id')
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/app/installations)
+          echo "DEBUG installations response: $(echo "$INSTALLS_RAW" | jq -c '[.[] | {id:.id, login:.account.login}]' 2>/dev/null || echo "$INSTALLS_RAW" | head -c 200)"
+          INSTALL_ID=$(echo "$INSTALLS_RAW" | jq -r '.[] | select(.account.login=="thisismydemo") | .id')
+          if [ -z "$INSTALL_ID" ] || [ "$INSTALL_ID" = "null" ]; then
+            echo "ERROR: Could not find installation for thisismydemo org. Full response: $(echo "$INSTALLS_RAW" | head -c 500)"
+            exit 1
+          fi
+          echo "DEBUG: INSTALL_ID=${INSTALL_ID}"
 
           # Get installation access token
-          INST_TOKEN=$(curl -s -X POST \
+          INST_RAW=$(curl -s -X POST \
             -H "Authorization: Bearer $JWT" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/app/installations/${INSTALL_ID}/access_tokens" \
-            | jq -r .token)
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/app/installations/${INSTALL_ID}/access_tokens")
+          echo "DEBUG inst_token response keys: $(echo "$INST_RAW" | jq -r 'keys | @csv' 2>/dev/null || echo "$INST_RAW" | head -c 200)"
+          INST_TOKEN=$(echo "$INST_RAW" | jq -r .token)
+          if [ -z "$INST_TOKEN" ] || [ "$INST_TOKEN" = "null" ]; then
+            echo "ERROR: Could not obtain installation access token. Response: $(echo "$INST_RAW" | head -c 500)"
+            exit 1
+          fi
 
           # Get runner registration token
-          TOKEN=$(curl -s -X POST \
+          REG_RAW=$(curl -s -X POST \
             -H "Authorization: Bearer $INST_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token \
-            | jq -r .token)
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token)
+          echo "DEBUG reg_token response keys: $(echo "$REG_RAW" | jq -r 'keys | @csv' 2>/dev/null || echo "$REG_RAW" | head -c 200)"
+          TOKEN=$(echo "$REG_RAW" | jq -r .token)
 
           if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            echo "ERROR: Failed to obtain runner registration token" && exit 1
+            echo "ERROR: Failed to obtain runner registration token. Response: $(echo "$REG_RAW" | head -c 500)"
+            exit 1
           fi
           echo "::add-mask::$TOKEN"
           echo "runner_token=$TOKEN" >> $GITHUB_OUTPUT
