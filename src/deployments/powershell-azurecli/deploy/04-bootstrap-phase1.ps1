@@ -43,10 +43,17 @@ $features = @(
 Write-Log "Installing Windows features: $($features -join ', ')"
 
 $result = Install-WindowsFeature -Name $features -IncludeManagementTools -IncludeAllSubFeature
-Write-Log "Install result: Success=$($result.Success), RestartNeeded=$($result.RestartNeeded)"
+Write-Log "Install result: Success=$($result.Success), ExitCode=$($result.ExitCode), RestartNeeded=$($result.RestartNeeded)"
 
-if (-not $result.Success) {
-    Write-Log "Feature installation failed. Check the log." 'ERROR'
+# Verify the actual install state rather than trusting result.Success (can be null in some contexts)
+$hvStateAfter = (Get-WindowsFeature -Name 'Hyper-V').InstallState
+Write-Log "Hyper-V state after install attempt: $hvStateAfter"
+
+if ($hvStateAfter -notin @('Installed', 'InstallPending')) {
+    Write-Log "Feature installation failed -- Hyper-V state is '$hvStateAfter'. ExitCode=$($result.ExitCode)" 'ERROR'
+    if ($result.FeatureResult) {
+        $result.FeatureResult | ForEach-Object { Write-Log "  Feature $($_.Name): $($_.InstallState) Message=$($_.Message)" 'ERROR' }
+    }
     exit 1
 }
 
@@ -76,8 +83,8 @@ Invoke-WebRequest -Uri $msiUrl -OutFile $msiPath -UseBasicParsing
 Start-Process msiexec.exe -ArgumentList "/i `"$msiPath`" /quiet ADD_EXPLORER_CONTEXT_MENU_OPENPOWERSHELL=1 ENABLE_PSREMOTING=1 REGISTER_MANIFEST=1" -Wait -NoNewWindow
 Write-Log "PowerShell 7 installed."
 
-Write-Log "Phase 1 complete. Triggering reboot via shutdown command..."
-# Use shutdown.exe so the run-command can return before the reboot happens
-& shutdown.exe /r /t 20 /c "HVLab Phase 1 reboot" | Out-Null
-Write-Log "Reboot scheduled in 20 seconds."
-Restart-Computer -Force
+Write-Log "Phase 1 complete. Reboot will be issued by the workflow (az vm restart)."
+# DO NOT call shutdown.exe or Restart-Computer here.
+# The workflow issues az vm restart after this run-command returns.
+# Multiple back-to-back reboots interrupt Windows feature post-boot finalization
+# and leave Hyper-V stuck in 'Available' state forever.

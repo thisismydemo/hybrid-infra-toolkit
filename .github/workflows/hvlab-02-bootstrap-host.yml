@@ -32,9 +32,29 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ env.SUBSCRIPTION_ID }}
 
+      # ── Already-done check ─────────────────────────────────────────────────
+      - name: "Check if bootstrap already complete"
+        id: already_done
+        run: |
+          MARKER=$(az vm run-command invoke \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts "Write-Output (Test-Path 'C:\hvlab-phase2-complete.marker')" \
+            --query "value[0].message" -o tsv 2>/dev/null || echo "False")
+          if echo "$MARKER" | grep -qi "True"; then
+            echo "done=true" >> $GITHUB_OUTPUT
+            echo "✅ Phase 2 marker found — bootstrap already complete, skipping all steps."
+          else
+            echo "done=false" >> $GITHUB_OUTPUT
+            echo "Phase 2 marker not found — proceeding with bootstrap."
+          fi
+
       # ── Phase 1: Install Windows Features ──────────────────────────────────
       - name: "Phase 1 — Install Windows features (will reboot if needed)"
         id: phase1
+        if: steps.already_done.outputs.done != 'true'
         run: |
           OUTPUT=$(az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
@@ -53,7 +73,7 @@ jobs:
           fi
 
       - name: "Restart VM to activate Windows features"
-        if: steps.phase1.outputs.needs_reboot == 'true'
+        if: steps.already_done.outputs.done != 'true' && steps.phase1.outputs.needs_reboot == 'true'
         run: |
           echo "Issuing VM restart..."
           az vm restart \
@@ -63,7 +83,7 @@ jobs:
           echo "VM restart complete."
 
       - name: "Wait for VM agent to be ready"
-        if: steps.phase1.outputs.needs_reboot == 'true'
+        if: steps.already_done.outputs.done != 'true' && steps.phase1.outputs.needs_reboot == 'true'
         run: |
           echo "Waiting 90 seconds for VM agent to come back online..."
           sleep 90
@@ -84,6 +104,7 @@ jobs:
       # ── Phase 2: Configure Hyper-V ─────────────────────────────────────────
       - name: "Phase 2 — Configure Hyper-V, vSwitches, and WinNAT"
         id: phase2
+        if: steps.already_done.outputs.done != 'true'
         run: |
           OUTPUT=$(az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
@@ -106,11 +127,12 @@ jobs:
           fi
 
       - name: "Wait for host services to settle"
-        if: steps.phase2.outputs.needs_settle == 'true'
+        if: steps.already_done.outputs.done != 'true' && steps.phase2.outputs.needs_settle == 'true'
         run: sleep 120
 
       # ── Phase 3: Download ISOs ─────────────────────────────────────────────
       - name: "Phase 3 — Download evaluation ISOs"
+        if: steps.already_done.outputs.done != 'true'
         run: |
           az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
@@ -123,6 +145,7 @@ jobs:
 
       # ── Phase 4: Install GitHub Actions self-hosted runner ────────────────
       - name: "Phase 4 — Install GitHub Actions self-hosted runner"
+        if: steps.already_done.outputs.done != 'true'
         run: |
           EXISTING_RUNNER=$(az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \

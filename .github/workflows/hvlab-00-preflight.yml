@@ -8,7 +8,8 @@ on:
       - '.github/workflows/hvlab-00-preflight.yml'
       - '.github/workflows/hvlab-01-deploy-azure.yml'
       - '.github/workflows/hvlab-02-bootstrap-host.yml'
-      - 'src/**'
+      - 'src/deployments/bicep/**'
+      - 'src/platform/**'
       - 'configs/**'
   workflow_dispatch:
     inputs:

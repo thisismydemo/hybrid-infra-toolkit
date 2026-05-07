@@ -1,5 +1,5 @@
 ﻿##############################################################################
-# 00-download-isos.ps1  -- Automated ISO download to D:\HyperVStorage\ISOs\
+# 00-download-isos.ps1  -- Automated ISO download to S:\HyperVStorage\ISOs\
 #
 # Downloads:
 #   - Windows Server 2022 Evaluation (180-day, ISO)
@@ -7,18 +7,18 @@
 #   - SQL Server 2022 Developer Edition (ISO)         <- free, for SCVMM
 #
 # Run: BEFORE workflow 03 (nested VM creation). Must have D:\ volume ready.
-# Run from: self-hosted runner on hvlab-host01 (needs D:\HyperVStorage\ISOs\)
+# Run from: self-hosted runner on hvlab-host01 (needs S:\HyperVStorage\ISOs\)
 ##############################################################################
 
 param(
-    [string]$ISODir     = 'S:\HyperVStorage\ISOs',
+    [string]$ISODir = 'S:\HyperVStorage\ISOs',
     [switch]$SkipWS2022,
     [switch]$SkipWS2025,
     [switch]$SkipSQL
 )
 
 $ErrorActionPreference = 'Stop'
-$ProgressPreference    = 'SilentlyContinue'   # massively speeds up Invoke-WebRequest
+$ProgressPreference = 'SilentlyContinue'   # massively speeds up Invoke-WebRequest
 New-Item -ItemType Directory -Path $ISODir -Force | Out-Null
 
 function Get-FileWithProgress {
@@ -32,13 +32,14 @@ function Get-FileWithProgress {
     try {
         # Use BITS for large files -- resumable, progress-aware, background-capable
         Start-BitsTransfer -Source $Uri -Destination $OutFile -DisplayName $DisplayName
-    } catch {
+    }
+    catch {
         # Fallback to Invoke-WebRequest if BITS fails (firewall/proxy issues)
         Write-Warning "BITS failed, falling back to Invoke-WebRequest: $($_.Exception.Message)"
         Invoke-WebRequest -Uri $Uri -OutFile $OutFile -UseBasicParsing -MaximumRedirection 10
     }
     $elapsed = (Get-Date) - $start
-    $sizeMB  = [math]::Round((Get-Item $OutFile).Length / 1MB, 0)
+    $sizeMB = [math]::Round((Get-Item $OutFile).Length / 1MB, 0)
     Write-Host "   $DisplayName -- ${sizeMB} MB in $([int]$elapsed.TotalSeconds)s" -ForegroundColor Green
 }
 
