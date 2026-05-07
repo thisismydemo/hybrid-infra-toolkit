@@ -33,9 +33,24 @@ jobs:
           subscription-id: ${{ env.SUBSCRIPTION_ID }}
 
       # ── Already-done check ─────────────────────────────────────────────────
-      - name: "Check if bootstrap already complete"
+      - name: "Wait for VM agent, then check if bootstrap already complete"
         id: already_done
         run: |
+          echo "Waiting for VM agent to be ready before checking marker..."
+          for i in $(seq 1 20); do
+            STATUS=$(az vm get-instance-view \
+              --subscription "$SUBSCRIPTION_ID" \
+              --resource-group "$RESOURCE_GROUP" \
+              --name "$VM_NAME" \
+              --query "instanceView.vmAgent.statuses[0].displayStatus" -o tsv 2>/dev/null || echo "unknown")
+            echo "  [${i}/20] VM agent: $STATUS"
+            if [ "$STATUS" = "Ready" ]; then
+              echo "VM agent is ready."
+              break
+            fi
+            sleep 15
+          done
+
           MARKER=$(az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
             --resource-group "$RESOURCE_GROUP" \
@@ -43,6 +58,7 @@ jobs:
             --command-id RunPowerShellScript \
             --scripts "Write-Output (Test-Path 'C:\hvlab-phase2-complete.marker')" \
             --query "value[0].message" -o tsv 2>/dev/null || echo "False")
+          echo "Marker check result: $MARKER"
           if echo "$MARKER" | grep -qi "True"; then
             echo "done=true" >> $GITHUB_OUTPUT
             echo "✅ Phase 2 marker found — bootstrap already complete, skipping all steps."
