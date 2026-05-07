@@ -17,6 +17,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: "Ensure runner has Hyper-V admin rights"
+        shell: powershell
+        run: |
+          $members = Get-LocalGroupMember -Group "Hyper-V Administrators" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+          if ($members -notcontains "NT AUTHORITY\SYSTEM") {
+            Add-LocalGroupMember -Group "Hyper-V Administrators" -Member "NT AUTHORITY\SYSTEM" -ErrorAction SilentlyContinue
+            Write-Host "Added SYSTEM to Hyper-V Administrators"
+          } else {
+            Write-Host "SYSTEM already in Hyper-V Administrators"
+          }
+          # Also add the runner service account explicitly
+          $svc = Get-WmiObject Win32_Service -Filter "Name LIKE 'actions.runner.%'" | Select-Object -First 1
+          if ($svc -and $svc.StartName -notin @('LocalSystem','NT AUTHORITY\SYSTEM') -and $svc.StartName -notlike '*SYSTEM*') {
+            Add-LocalGroupMember -Group "Hyper-V Administrators" -Member $svc.StartName -ErrorAction SilentlyContinue
+            Write-Host "Added $($svc.StartName) to Hyper-V Administrators"
+          }
+          Write-Host "Runner identity: $([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+          $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+          Write-Host "Is admin: $isAdmin"
+
       - name: "Create forest root DC (hvdc01 — azrl.mgmt)"
         shell: powershell
         env:

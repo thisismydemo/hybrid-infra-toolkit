@@ -1,2 +1,2 @@
-triggered: 2026-05-07 09:49:53
-fix: removed az CLI dependency - using env var or lab default password
+triggered: 2026-05-07 09:58:50
+fix: add Hyper-V Administrators pre-step for New-VHD permissions
