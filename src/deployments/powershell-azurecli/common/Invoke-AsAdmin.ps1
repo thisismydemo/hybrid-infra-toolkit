@@ -38,7 +38,7 @@ $wrapperLines.Add('& "' + $ScriptPath + '" 2>&1 | Tee-Object -FilePath "' + $log
 $wrapperLines.Add('exit $LASTEXITCODE')
 [System.IO.File]::WriteAllLines($wrapperPath, $wrapperLines, [System.Text.Encoding]::UTF8)
 
-Write-Host "Running as $AdminUser: $ScriptPath"
+Write-Host "Running as ${AdminUser}: $ScriptPath"
 
 $proc = Start-Process powershell.exe `
     -ArgumentList ('-NonInteractive -ExecutionPolicy Bypass -File "' + $wrapperPath + '"') `
@@ -55,4 +55,4 @@ if (Test-Path $logFile) {
 }
 Remove-Item $wrapperPath -Force -ErrorAction SilentlyContinue
 
-exit ($proc.ExitCode ?? 1)
+exit (if ($null -ne $proc.ExitCode) { $proc.ExitCode } else { 1 })
