@@ -18,7 +18,7 @@ param(
 
     [string]$AdminPassword = 'HVLab@2026!',
 
-    [string]$AdminUser = 'Administrator'
+    [string]$AdminUser = 'hvlabadmin'
 )
 
 $ErrorActionPreference = 'Stop'

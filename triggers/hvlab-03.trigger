@@ -1,2 +1,2 @@
-triggered: 2026-05-07 11:48:35
-fix: PS5 compat - no ?? operator, fix variable:drive ambiguity
+triggered: 2026-05-07 11:54:08
+fix: use hvlabadmin + KV secret hvlab-host01-admin-password via IMDS

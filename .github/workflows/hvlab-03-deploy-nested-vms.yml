@@ -17,23 +17,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Setup - verify Start-Process -Credential works"
+      - name: "Setup - retrieve admin password from Key Vault via IMDS"
         shell: powershell
         run: |
+          $passFile = "C:\Windows\Temp\hvlab-admin.pass"
+          try {
+            $tok = (Invoke-RestMethod `
+              -Uri "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net" `
+              -Headers @{Metadata="true"} -Method Get -EA Stop).access_token
+            $sec = (Invoke-RestMethod `
+              -Uri "https://kv-tplabs-platform.vault.azure.net/secrets/hvlab-host01-admin-password?api-version=7.0" `
+              -Headers @{Authorization="Bearer $tok"} -EA Stop).value
+            $sec | Set-Content $passFile -Encoding UTF8 -NoNewline
+            Write-Host "::add-mask::$sec"
+            Write-Host "Password retrieved from Key Vault"
+          } catch {
+            Write-Host "KV retrieval failed: $_  - using default"
+            "HVLab@2026!" | Set-Content $passFile -Encoding UTF8 -NoNewline
+          }
           $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
           $ts = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\test-id.ps1"
-          '[System.Security.Principal.WindowsIdentity]::GetCurrent().Name' | Set-Content $ts -Encoding UTF8
-          & $helper -ScriptPath $ts -AdminPassword 'HVLab@2026!'
-          Remove-Item $ts -Force -ErrorAction SilentlyContinue
+          "[System.Security.Principal.WindowsIdentity]::GetCurrent().Name" | Set-Content $ts -Encoding UTF8
+          $adminPass = Get-Content $passFile -Raw
+          & $helper -ScriptPath $ts -AdminPassword $adminPass -AdminUser hvlabadmin
+          Remove-Item $ts -Force -EA SilentlyContinue
           if ($LASTEXITCODE -ne 0) { throw "Start-Process -Credential test failed (exit $LASTEXITCODE)" }
-          Write-Host "Start-Process -Credential OK."
+          Write-Host "Start-Process -Credential as hvlabadmin OK."
 
       - name: "Create forest root DC (hvdc01 - azrl.mgmt)"
         shell: powershell
         run: |
           $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
           $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\01-create-dc.ps1"
-          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          $adminPass = Get-Content "C:\Windows\Temp\hvlab-admin.pass" -Raw
+          & $helper -ScriptPath $script -AdminPassword $adminPass -AdminUser hvlabadmin
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: "Create iSCSI target server (hviscsi01)"
@@ -41,7 +58,8 @@ jobs:
         run: |
           $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
           $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\02-create-iscsi.ps1"
-          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          $adminPass = Get-Content "C:\Windows\Temp\hvlab-admin.pass" -Raw
+          & $helper -ScriptPath $script -AdminPassword $adminPass -AdminUser hvlabadmin
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: "Create Hyper-V cluster nodes (hvnode01-04)"
@@ -49,7 +67,8 @@ jobs:
         run: |
           $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
           $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\03-create-cluster-nodes.ps1"
-          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          $adminPass = Get-Content "C:\Windows\Temp\hvlab-admin.pass" -Raw
+          & $helper -ScriptPath $script -AdminPassword $adminPass -AdminUser hvlabadmin
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: "Create WAC vmode server (hvwac01 - WS2025)"
@@ -57,7 +76,8 @@ jobs:
         run: |
           $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
           $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\04-create-wac-vmode.ps1"
-          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          $adminPass = Get-Content "C:\Windows\Temp\hvlab-admin.pass" -Raw
+          & $helper -ScriptPath $script -AdminPassword $adminPass -AdminUser hvlabadmin
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: "Create SCVMM server (hvscvmm01)"
@@ -65,7 +85,8 @@ jobs:
         run: |
           $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
           $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\05-create-scvmm.ps1"
-          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          $adminPass = Get-Content "C:\Windows\Temp\hvlab-admin.pass" -Raw
+          & $helper -ScriptPath $script -AdminPassword $adminPass -AdminUser hvlabadmin
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Summary
@@ -73,9 +94,10 @@ jobs:
         run: |
           $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
           $sumScript = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\get-vms-csv.ps1"
-          'Get-VM -EA SilentlyContinue | Select-Object Name,State,ProcessorCount | Export-Csv -Path C:\Windows\Temp\hvlab-vms.csv -NoTypeInformation' | Set-Content $sumScript -Encoding UTF8
-          & $helper -ScriptPath $sumScript -AdminPassword 'HVLab@2026!'
-          Remove-Item $sumScript -Force -ErrorAction SilentlyContinue
+          "Get-VM -EA SilentlyContinue | Select-Object Name,State,ProcessorCount | Export-Csv -Path C:\\Windows\\Temp\\hvlab-vms.csv -NoTypeInformation" | Set-Content $sumScript -Encoding UTF8
+          $adminPass = Get-Content "C:\\Windows\\Temp\\hvlab-admin.pass" -Raw
+          & $helper -ScriptPath $sumScript -AdminPassword $adminPass -AdminUser hvlabadmin
+          Remove-Item $sumScript, "C:\Windows\Temp\hvlab-admin.pass" -Force -EA SilentlyContinue
           $vms = if (Test-Path C:\Windows\Temp\hvlab-vms.csv) { Import-Csv C:\Windows\Temp\hvlab-vms.csv; Remove-Item C:\Windows\Temp\hvlab-vms.csv -Force } else { @() }
           $vms | Format-Table | Out-String | Write-Host
           "## Nested VMs Created" | Out-File $env:GITHUB_STEP_SUMMARY -Append
@@ -85,3 +107,4 @@ jobs:
             "| $($vm.Name) | $($vm.State) | $($vm.ProcessorCount) |" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           }
           "`n**Next:** HVLab 04 - Configure Failover Cluster" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
