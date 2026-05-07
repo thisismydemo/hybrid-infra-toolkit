@@ -88,7 +88,8 @@ jobs:
             --vault-name "$KV_NAME" \
             --subscription "$KV_SUBSCRIPTION" \
             --name "hvlab-github-app-pem" \
-            --file "$PEM_FILE"
+            --file "$PEM_FILE" \
+            --overwrite
 
           # Build JWT: base64url(header).base64url(payload).base64url(sig)
           b64url() { base64 -w0 | tr '+/' '-_' | tr -d '='; }
