@@ -55,8 +55,8 @@ Initialize-HVLabGuestNetwork -VMName $VMName -Credential $bootstrapCredential -A
     }
 )
 
-Invoke-HVLabPowerShellDirect -VMName $VMName -Credential $bootstrapCredential -ArgumentList $DomainFqdn, $DomainNetBIOS, $MgmtIP, ($bootstrapCredential.GetNetworkCredential().Password) -ScriptBlock {
-    param($DomainFqdn, $DomainNetBIOS, $MgmtIP, $BootstrapPassword)
+Invoke-HVLabPowerShellDirect -VMName $VMName -Credential $bootstrapCredential -ArgumentList $DomainFqdn, $DomainNetBIOS, $MgmtIP, $bootstrapCredential.Password -ScriptBlock {
+    param($DomainFqdn, $DomainNetBIOS, $MgmtIP, [SecureString]$BootstrapPassword)
 
     $alreadyDc = $false
     try {
@@ -67,7 +67,7 @@ Invoke-HVLabPowerShellDirect -VMName $VMName -Credential $bootstrapCredential -A
 
     if (-not $alreadyDc) {
         Install-WindowsFeature AD-Domain-Services, DNS -IncludeManagementTools | Out-Null
-        $safeModePassword = ConvertTo-SecureString $BootstrapPassword -AsPlainText -Force
+        $safeModePassword = $BootstrapPassword
         Install-ADDSForest \
             -DomainName $DomainFqdn \
             -DomainNetbiosName $DomainNetBIOS \
