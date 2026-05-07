@@ -121,7 +121,7 @@ $mgmtAdapter = Get-NetAdapter | Where-Object {
 
 Write-Log "Binding vSwitch-External to adapter: $($mgmtAdapter.Name)"
 New-VMSwitch -Name 'vSwitch-External' -NetAdapterName $mgmtAdapter.Name `
-    -AllowManagementOS $true -Notes 'Bound to Azure NIC -- provides Azure subnet access for nested VMs' `
+    -AllowManagementOS $true `
     -ErrorAction SilentlyContinue | Out-Null
 
 $internalSwitches = @(
