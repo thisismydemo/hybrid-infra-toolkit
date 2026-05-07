@@ -122,9 +122,18 @@ jobs:
       # ── Phase 4: Install GitHub Actions self-hosted runner ────────────────
       - name: "Phase 4 — Install GitHub Actions self-hosted runner"
         run: |
-          # Try PAT first (admin scope), then fall back to GITHUB_TOKEN with administration:write
-          if [ -n "$GH_PAT" ]; then
-            REG_TOKEN=$(GH_TOKEN="$GH_PAT" gh api -X POST "/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token" --jq .token)
+          # Try repo secret PAT first, then Key Vault PAT, then fall back to GITHUB_TOKEN.
+          PAT="$GH_PAT"
+          if [ -z "$PAT" ]; then
+            PAT=$(az keyvault secret show \
+              --subscription "$KV_SUBSCRIPTION" \
+              --vault-name "$KV_NAME" \
+              --name "hvlab-github-pat-full" \
+              --query value -o tsv 2>/dev/null || true)
+          fi
+
+          if [ -n "$PAT" ]; then
+            REG_TOKEN=$(GH_TOKEN="$PAT" gh api -X POST "/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token" --jq .token)
           else
             REG_TOKEN=$(gh api -X POST "/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token" --jq .token)
           fi
