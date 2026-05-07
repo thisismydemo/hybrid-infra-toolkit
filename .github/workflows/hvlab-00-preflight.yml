@@ -1,5 +1,5 @@
 name: "HVLab 00 — Repo Preflight"
-
+# retrigger: PEM secret updated in Key Vault 2026-05-07
 on:
   push:
     branches:
