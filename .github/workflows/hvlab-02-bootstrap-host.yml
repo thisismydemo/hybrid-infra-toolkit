@@ -92,6 +92,15 @@ jobs:
             --encoding ascii \
             --overwrite
 
+          # Debug: show format of downloaded secret (first 40 chars, line count)
+          echo "PEM debug: lines=$(wc -l < "$PEM_FILE"), first40=$(head -c 40 "$PEM_FILE" | cat -v)"
+
+          # Normalize: expand literal \n sequences and strip \r (handles CRLF or JSON-escaped PEM)
+          sed -i 's/\\n/\n/g; s/\r//' "$PEM_FILE"
+
+          # Verify PEM starts with expected header
+          head -1 "$PEM_FILE" | grep -q "BEGIN" || { echo "ERROR: PEM file invalid after normalization"; cat -v "$PEM_FILE" | head -5; exit 1; }
+
           # Build JWT: base64url(header).base64url(payload).base64url(sig)
           b64url() { base64 -w0 | tr '+/' '-_' | tr -d '='; }
           NOW=$(date +%s)
