@@ -102,7 +102,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/app/installations | \
-            jq -r '[.[] | select(.account.login == "thisismydemo")][0].id')
+            jq -r '.[0].id')
           if [ -z "$INSTALL_ID" ] || [ "$INSTALL_ID" = "null" ]; then
             echo "ERROR: GitHub App not installed on thisismydemo org. Install at: https://github.com/settings/apps/turner-github-app/installations"
             exit 1
