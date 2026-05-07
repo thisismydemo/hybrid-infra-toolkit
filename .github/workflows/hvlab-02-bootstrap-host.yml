@@ -75,77 +75,37 @@ jobs:
       - name: "Wait for host services to settle"
         run: sleep 120
 
-      # ── Get GitHub runner registration token via PAT ───────────────────────
-      - name: "Generate GitHub runner registration token"
-        id: runner-token
-        env:
-          KV_NAME: ${{ env.KV_NAME }}
-          KV_SUBSCRIPTION: ${{ env.KV_SUBSCRIPTION }}
-        run: |
-          set -euo pipefail
-          PAT=$(az keyvault secret show --vault-name "$KV_NAME" --subscription "$KV_SUBSCRIPTION" \
-            --name "hvlab-github-runner-pat" --query value -o tsv)
-          RESPONSE=$(curl -s -X POST \
-            -H "Authorization: token $PAT" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token)
-          TOKEN=$(echo "$RESPONSE" | jq -r .token)
-          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            echo "ERROR: Failed to obtain runner registration token. API response: $RESPONSE"
-            exit 1
-          fi
-          echo "::add-mask::$TOKEN"
-          echo "runner_token=$TOKEN" >> $GITHUB_OUTPUT
-
-      # ── Install GitHub runner ───────────────────────────────────────────────
-      - name: "Install GitHub Actions self-hosted runner"
+      # ── Phase 3: Download ISOs ─────────────────────────────────────────────
+      - name: "Phase 3 — Download evaluation ISOs"
         run: |
           az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
             --resource-group "$RESOURCE_GROUP" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts @src/deployments/powershell-azurecli/deploy/06-install-github-runner.ps1 \
-            --parameters "RunnerToken=${{ steps.runner-token.outputs.runner_token }}" \
-            --output json
-          echo "GitHub runner installed."
+            --scripts @src/deployments/powershell-azurecli/deploy/00-download-isos.ps1 \
+            --output json || true
+          echo "ISO download script sent (runs async on VM)."
+
+      # ── Phase 4: Install Azure Arc ─────────────────────────────────────────
+      - name: "Phase 4 — Install Azure Arc Connected Machine Agent"
+        run: |
+          az vm run-command invoke \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts @src/deployments/powershell-azurecli/deploy/07-install-arc.ps1 \
+            --parameters "SubscriptionId=$SUBSCRIPTION_ID" "ResourceGroup=$RESOURCE_GROUP" \
+            --output json || true
+          echo "Arc agent installation script sent."
 
       - name: Summary
         run: |
           echo "## ✅ Host VM Bootstrap Complete" >> $GITHUB_STEP_SUMMARY
-          echo "- Windows features, storage pool, vSwitches, and WinNAT done" >> $GITHUB_STEP_SUMMARY
+          echo "- Phase 1: Windows features installed (with reboot)" >> $GITHUB_STEP_SUMMARY
+          echo "- Phase 2: Hyper-V, vSwitches, and WinNAT configured" >> $GITHUB_STEP_SUMMARY
+          echo "- Phase 3: Evaluation ISO downloads initiated" >> $GITHUB_STEP_SUMMARY
+          echo "- Phase 4: Azure Arc agent installation initiated" >> $GITHUB_STEP_SUMMARY
           echo "- Host domain join intentionally deferred until the lab-local domain exists" >> $GITHUB_STEP_SUMMARY
-          echo "- Self-hosted runner **hvlab-host** installed and running" >> $GITHUB_STEP_SUMMARY
-          echo "**Next step:** Run **HVLab 02b — Post-Bootstrap (ISOs + Arc)**" >> $GITHUB_STEP_SUMMARY
-
-  # ── Second job: runs ON the self-hosted runner (needs runner from job above) ──
-  post-bootstrap:
-    name: Post-Bootstrap (ISOs + Arc)
-    needs: bootstrap
-    runs-on: [self-hosted, hvlab-host]
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: "Download evaluation ISOs (WS2022, WS2025, SQL 2022 Dev)"
-        shell: pwsh
-        run: src/deployments/powershell-azurecli/deploy/00-download-isos.ps1
-        continue-on-error: true   # slow downloads shouldn't block lab setup
-
-      - name: "Install Azure Arc Connected Machine Agent"
-        shell: pwsh
-        run: |
-          src/deployments/powershell-azurecli/deploy/07-install-arc.ps1 `
-            -SubscriptionId "${{ env.SUBSCRIPTION_ID }}" `
-            -ResourceGroup  "${{ env.RESOURCE_GROUP }}"
-        continue-on-error: true
-
-      - name: Summary
-        shell: pwsh
-        run: |
-          "## ✅ Post-Bootstrap Complete" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-          "- Evaluation ISOs downloading to D:\HyperVStorage\ISOs\" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-          "- Azure Arc agent installed on hvlabhost01" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           "**Next step:** Run **HVLab 03 — Deploy Nested VMs**" | Out-File $env:GITHUB_STEP_SUMMARY -Append
