@@ -1,2 +1,2 @@
-triggered: 2026-05-07 15:10:04
-fix: download WS2025.iso in setup if stub/missing
+triggered: 2026-05-07 15:14:25
+fix: use curl.exe for ISO download + check S: for existing ISO
