@@ -1,6 +1,6 @@
-##############################################################################
+﻿##############################################################################
 # 05-bootstrap-phase2.ps1
-# PHASE 2 — Configure Hyper-V host after reboot:
+# PHASE 2 -- Configure Hyper-V host after reboot:
 #   - Create storage pool + D:\ volume from 4 data disks
 #   - Create Hyper-V virtual switches
 #   - Configure WinNAT for nested VM outbound internet
@@ -44,21 +44,34 @@ function New-SecureStringValue {
     return $secureString
 }
 
-Write-Log "=== HV-Lab Bootstrap Phase 2 — Hyper-V Configuration ==="
+Write-Log "=== HV-Lab Bootstrap Phase 2 -- Hyper-V Configuration ==="
 
-# Idempotency check — skip if Phase 2 already completed
+# Idempotency check -- skip if Phase 2 already completed
 if (Test-Path 'C:\hvlab-phase2-complete.marker') {
-    Write-Log "Phase 2 skipped — already complete (marker found)."
+    Write-Log "Phase 2 skipped -- already complete (marker found)."
     exit 0
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. Storage Pool — stripe data disks into one pool + D: volume
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# 1. Storage Pool -- stripe data disks into one pool + D: volume
+# -----------------------------------------------------------------------------
+
+# Azure assigns the temporary (ephemeral) disk to D:\ by default.
+# Reassign it to T:\ so D:\ is free for the HyperVStorage pool.
+$tempVol = Get-Volume -DriveLetter 'D' -ErrorAction SilentlyContinue
+if ($tempVol -and $tempVol.FileSystemLabel -like '*Temp*') {
+    Write-Log "Azure Temporary Storage is on D: (label: '$($tempVol.FileSystemLabel)') -- reassigning to T:"
+    $tempPartition = Get-Partition -DriveLetter 'D'
+    Set-Partition -InputObject $tempPartition -NewDriveLetter 'T'
+    Write-Log "Temporary Storage reassigned to T:\"
+} elseif ($tempVol) {
+    Write-Log "D: is in use (label: '$($tempVol.FileSystemLabel)') but does not appear to be Azure Temporary Storage -- leaving as-is."
+}
+
 Write-Log "Creating storage pool from data disks..."
 
 $disks = Get-PhysicalDisk | Where-Object {
-    $_.CanPool -eq $true -and $_.BusType -eq 'SCSI'
+    $_.CanPool -eq $true -and $_.BusType -in @('SCSI', 'SAS')
 }
 Write-Log "Found $($disks.Count) poolable disks."
 
@@ -68,7 +81,7 @@ if ($disks.Count -lt 2) {
 else {
     $existingPool = Get-StoragePool -FriendlyName $StoragePoolName -ErrorAction SilentlyContinue
     if ($existingPool) {
-        Write-Log "Storage pool '$StoragePoolName' already exists — skipping creation."
+        Write-Log "Storage pool '$StoragePoolName' already exists -- skipping creation."
     }
     else {
         $subsystem = Get-StorageSubSystem | Where-Object { $_.FriendlyName -like '*Windows*' }
@@ -105,9 +118,9 @@ foreach ($dir in $dirs) {
 }
 Write-Log "HyperV storage directories created on $($VolumeLetter):\"
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 2. Hyper-V Virtual Switches
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 Write-Log "Creating Hyper-V virtual switches..."
 
 $mgmtAdapter = Get-NetAdapter | Where-Object {
@@ -116,7 +129,7 @@ $mgmtAdapter = Get-NetAdapter | Where-Object {
 
 Write-Log "Binding vSwitch-External to adapter: $($mgmtAdapter.Name)"
 New-VMSwitch -Name 'vSwitch-External' -NetAdapterName $mgmtAdapter.Name `
-    -AllowManagementOS $true -Notes 'Bound to Azure NIC — provides Azure subnet access for nested VMs' `
+    -AllowManagementOS $true -Notes 'Bound to Azure NIC -- provides Azure subnet access for nested VMs' `
     -ErrorAction SilentlyContinue | Out-Null
 
 $internalSwitches = @(
@@ -137,37 +150,37 @@ foreach ($sw in $internalSwitches) {
     Write-Log "Created internal switch: $($sw.Name) ($($sw.IP)/$($sw.Prefix))"
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 3. WinNAT
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 Write-Log "Configuring WinNAT ($NatSubnet)..."
 Get-NetNat | Remove-NetNat -Confirm:$false -ErrorAction SilentlyContinue
 New-NetNat -Name $NatName -InternalIPInterfaceAddressPrefix $NatSubnet
 Write-Log "WinNAT '$NatName' created for $NatSubnet"
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 4. Secondary IP forwarding notes
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 Write-Log "IP forwarding is enabled on Azure NIC (set via Bicep). Host routing handles .6/.7 delivery."
-Write-Log "  10.250.2.6 → hvwac01 (assigned to its vNIC on vSwitch-External)"
-Write-Log "  10.250.2.7 → hvscvmm01 (assigned to its vNIC on vSwitch-External)"
+Write-Log "  10.250.2.6 -> hvwac01 (assigned to its vNIC on vSwitch-External)"
+Write-Log "  10.250.2.7 -> hvscvmm01 (assigned to its vNIC on vSwitch-External)"
 Write-Log "  Nested VMs must configure their vNICs with these IPs for this to work."
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 5. Hyper-V default paths
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 Write-Log "Configuring Hyper-V default VM and VHD paths..."
 Set-VMHost -VirtualMachinePath "$($VolumeLetter):\HyperVStorage\VMs" `
     -VirtualHardDiskPath "$($VolumeLetter):\HyperVStorage\VHDs"
 Set-VMHost -EnableEnhancedSessionMode $true
 Write-Log "Hyper-V paths and enhanced session mode configured."
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 6. Optional Domain Join
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 Write-Log "Domain join step for $DomainFqdn..."
 if (-not $DomainJoinPassword) {
-    Write-Log "DomainJoinPassword not provided — skipping domain join until the lab-local domain is ready." 'WARN'
+    Write-Log "DomainJoinPassword not provided -- skipping domain join until the lab-local domain is ready." 'WARN'
 }
 else {
     $securePassword = New-SecureStringValue -Value $DomainJoinPassword

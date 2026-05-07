@@ -1,6 +1,6 @@
-##############################################################################
+﻿##############################################################################
 # 04-bootstrap-phase1.ps1
-# PHASE 1 — Install Windows features required for Hyper-V host.
+# PHASE 1 -- Install Windows features required for Hyper-V host.
 # Run via: az vm run-command invoke (from workflow 02, step "Phase 1")
 # The VM WILL REBOOT at the end of this script.
 # Workflow 02 waits 5 minutes then runs 05-bootstrap-phase2.ps1.
@@ -16,12 +16,12 @@ function Write-Log {
     Write-Host $line
 }
 
-Write-Log "=== HV-Lab Bootstrap Phase 1 — Windows Features ==="
+Write-Log "=== HV-Lab Bootstrap Phase 1 -- Windows Features ==="
 
-# Idempotency check — skip reboot if already installed
+# Idempotency check -- skip reboot if already installed
 $hvState = (Get-WindowsFeature -Name 'Hyper-V').InstallState
 if ($hvState -eq 'Installed') {
-    Write-Log "Hyper-V already installed — Phase 1 skipped (no reboot)."
+    Write-Log "Hyper-V already installed -- Phase 1 skipped (no reboot)."
     exit 0
 }
 
@@ -66,7 +66,7 @@ $trigger = New-ScheduledTaskTrigger -AtStartup
 Register-ScheduledTask -TaskName 'HVLab-Phase1-Complete' -Action $action -Trigger $trigger `
     -RunLevel Highest -User 'SYSTEM' -Force | Out-Null
 
-# Install PowerShell 7 (required by GitHub Actions self-hosted runner — shell: pwsh)
+# Install PowerShell 7 (required by GitHub Actions self-hosted runner -- shell: pwsh)
 Write-Log "Installing PowerShell 7..."
 $psVersion = '7.4.6'
 $msiUrl = "https://github.com/PowerShell/PowerShell/releases/download/v$psVersion/PowerShell-$psVersion-win-x64.msi"

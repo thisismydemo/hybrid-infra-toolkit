@@ -4,20 +4,20 @@
 ##############################################################################
 
 param(
-    [string]$VMName            = 'hvdc01',
-    [string]$StorageRoot       = '',
-    [string]$ISOPath           = '',
+    [string]$VMName = 'hvdc01',
+    [string]$StorageRoot = '',
+    [string]$ISOPath = '',
     [string]$BootstrapPassword = '',
-    [int]$VHDSizeGB            = 80,
-    [int]$vCPUs                = 2,
-    [int]$MemoryGB             = 8,
-    [string]$MgmtIP            = '172.16.10.10',
-    [int]$MgmtPrefixLen        = 24,
-    [string]$MgmtGateway       = '172.16.10.1',
-    [string]$DomainFqdn        = 'azrl.mgmt',
-    [string]$DomainNetBIOS     = 'AZRL',
-    [string]$KVName            = 'kv-tplabs-platform',
-    [string]$KVSubscription    = '2caa0b8a-a1d6-4f0c-8c03-861787b8315c'
+    [int]$VHDSizeGB = 80,
+    [int]$vCPUs = 2,
+    [int]$MemoryGB = 8,
+    [string]$MgmtIP = '172.16.10.10',
+    [int]$MgmtPrefixLen = 24,
+    [string]$MgmtGateway = '172.16.10.1',
+    [string]$DomainFqdn = 'azrl.mgmt',
+    [string]$DomainNetBIOS = 'AZRL',
+    [string]$KVName = 'kv-tplabs-platform',
+    [string]$KVSubscription = '2caa0b8a-a1d6-4f0c-8c03-861787b8315c'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -62,19 +62,20 @@ Invoke-HVLabPowerShellDirect -VMName $VMName -Credential $bootstrapCredential -A
     try {
         Get-Service -Name NTDS -ErrorAction Stop | Out-Null
         $alreadyDc = $true
-    } catch {
+    }
+    catch {
     }
 
     if (-not $alreadyDc) {
         Install-WindowsFeature AD-Domain-Services, DNS -IncludeManagementTools | Out-Null
         $safeModePassword = $BootstrapPassword
         Install-ADDSForest \
-            -DomainName $DomainFqdn \
-            -DomainNetbiosName $DomainNetBIOS \
-            -InstallDNS \
-            -SafeModeAdministratorPassword $safeModePassword \
-            -NoRebootOnCompletion:$true \
-            -Force:$true
+        -DomainName $DomainFqdn \
+        -DomainNetbiosName $DomainNetBIOS \
+        -InstallDNS \
+        -SafeModeAdministratorPassword $safeModePassword \
+        -NoRebootOnCompletion:$true \
+        -Force:$true
     }
 
     $primaryAdapter = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Sort-Object InterfaceIndex | Select-Object -First 1

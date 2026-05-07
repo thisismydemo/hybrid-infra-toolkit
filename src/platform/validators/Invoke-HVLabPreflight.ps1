@@ -34,8 +34,8 @@ function New-SummaryRow {
     )
 
     [PSCustomObject]@{
-        Check = $Check
-        Result = $Result
+        Check   = $Check
+        Result  = $Result
         Details = $Details
     }
 }
@@ -68,11 +68,11 @@ function Get-AzTerminalValue {
 
     $lines = @(
         $text -split "`r?`n" |
-            ForEach-Object { $_.Trim() } |
-            Where-Object {
-                $_ -and
-                $_ -notmatch '^WARNING:'
-            }
+        ForEach-Object { $_.Trim() } |
+        Where-Object {
+            $_ -and
+            $_ -notmatch '^WARNING:'
+        }
     )
 
     if ($lines.Count -eq 0) {
@@ -88,7 +88,7 @@ New-Item -Path $tempRoot -ItemType Directory -Force | Out-Null
 
 try {
     Write-Section 'PowerShell parser validation'
-    $psFiles = Get-ChildItem -Path $RepoRoot -Recurse -Include *.ps1,*.psm1 -File
+    $psFiles = Get-ChildItem -Path $RepoRoot -Recurse -Include *.ps1, *.psm1 -File
     $parseFailures = New-Object System.Collections.Generic.List[object]
     foreach ($file in $psFiles) {
         $tokens = $null
@@ -97,11 +97,11 @@ try {
         if ($parseErrors) {
             foreach ($parseIssue in $parseErrors) {
                 $parseFailures.Add([PSCustomObject]@{
-                    File = $file.FullName
-                    Line = $parseIssue.Extent.StartLineNumber
-                    Column = $parseIssue.Extent.StartColumnNumber
-                    Message = $parseIssue.Message
-                })
+                        File    = $file.FullName
+                        Line    = $parseIssue.Extent.StartLineNumber
+                        Column  = $parseIssue.Extent.StartColumnNumber
+                        Message = $parseIssue.Message
+                    })
             }
         }
     }
@@ -124,11 +124,11 @@ try {
 
     if ($analyzerErrors.Count -gt 0) {
         $analyzerErrors |
-            Select-Object RuleName, ScriptName, Line, Message |
-            Sort-Object ScriptName, Line |
-            Format-Table -AutoSize |
-            Out-String |
-            Write-Host
+        Select-Object RuleName, ScriptName, Line, Message |
+        Sort-Object ScriptName, Line |
+        Format-Table -AutoSize |
+        Out-String |
+        Write-Host
         throw "PSScriptAnalyzer found $($analyzerErrors.Count) error(s)."
     }
 
@@ -138,26 +138,28 @@ try {
 
     if ($FailOnAnalyzerWarnings -and $analyzerWarnings.Count -gt 0) {
         $analyzerWarnings |
-            Select-Object RuleName, ScriptName, Line, Message |
-            Sort-Object ScriptName, Line |
-            Format-Table -AutoSize |
-            Out-String |
-            Write-Host
+        Select-Object RuleName, ScriptName, Line, Message |
+        Sort-Object ScriptName, Line |
+        Format-Table -AutoSize |
+        Out-String |
+        Write-Host
         throw "PSScriptAnalyzer found $($analyzerWarnings.Count) warning(s) and FailOnAnalyzerWarnings was specified."
     }
 
     if ($IncludeAnalyzerWarnings -and $analyzerWarnings.Count -gt 0) {
         Write-Host "Analyzer warnings: $($analyzerWarnings.Count)" -ForegroundColor Yellow
         $topWarnings = $analyzerWarnings |
-            Group-Object RuleName |
-            Sort-Object Count -Descending |
-            Select-Object -First 10 @{ Name = 'RuleName'; Expression = { $_.Name } }, Count
+        Group-Object RuleName |
+        Sort-Object Count -Descending |
+        Select-Object -First 10 @{ Name = 'RuleName'; Expression = { $_.Name } }, Count
         $topWarnings | Format-Table -AutoSize | Out-String | Write-Host
         $summaryRows.Add((New-SummaryRow -Check 'PSScriptAnalyzer' -Result 'Passed with warnings' -Details "$($analyzerWarnings.Count) warnings, 0 errors"))
-    } elseif ($IncludeAnalyzerWarnings) {
+    }
+    elseif ($IncludeAnalyzerWarnings) {
         Write-Host 'Analyzer warnings: 0'
         $summaryRows.Add((New-SummaryRow -Check 'PSScriptAnalyzer' -Result 'Passed' -Details '0 warnings, 0 errors'))
-    } else {
+    }
+    else {
         Write-Host 'Analyzer warnings: skipped (use -IncludeAnalyzerWarnings to enumerate them)'
         $summaryRows.Add((New-SummaryRow -Check 'PSScriptAnalyzer' -Result 'Passed' -Details '0 errors; warnings not enumerated'))
     }
@@ -170,9 +172,9 @@ try {
         $buildOutput = & az bicep build --file $file.FullName --outfile $outFile 2>&1
         if ($LASTEXITCODE -ne 0) {
             $buildFailures.Add([PSCustomObject]@{
-                File = $file.FullName
-                Output = ($buildOutput | Out-String).Trim()
-            })
+                    File   = $file.FullName
+                    Output = ($buildOutput | Out-String).Trim()
+                })
         }
     }
 
@@ -180,9 +182,9 @@ try {
     $paramsBuildOutput = & az bicep build-params --file $paramsFile --outfile $compiledParamsFile 2>&1
     if ($LASTEXITCODE -ne 0) {
         $buildFailures.Add([PSCustomObject]@{
-            File = $paramsFile
-            Output = ($paramsBuildOutput | Out-String).Trim()
-        })
+                File   = $paramsFile
+                Output = ($paramsBuildOutput | Out-String).Trim()
+            })
     }
 
     if ($buildFailures.Count -gt 0) {
@@ -195,7 +197,8 @@ try {
 
     if ($SkipArmValidation) {
         $summaryRows.Add((New-SummaryRow -Check 'ARM Validate' -Result 'Skipped' -Details 'SkipArmValidation specified'))
-    } else {
+    }
+    else {
         Write-Section 'ARM template validation'
         $accountOutput = & az account show --subscription $SubscriptionId --query '{id:id, name:name}' -o json 2>&1
         Assert-AzCommandSucceeded -ExitCode $LASTEXITCODE -Output $accountOutput -Context 'Azure account check'

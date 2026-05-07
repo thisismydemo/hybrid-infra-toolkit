@@ -1,6 +1,6 @@
-##############################################################################
+﻿##############################################################################
 # 06-bootstrap-phase4-runner.ps1
-# PHASE 4 — Install GitHub Actions self-hosted runner on the HVLab host VM.
+# PHASE 4 -- Install GitHub Actions self-hosted runner on the HVLab host VM.
 # Labels: self-hosted, hvlab-host01
 # Run via: az vm run-command invoke (from workflow 02, Phase 4 step)
 # Parameters: RegistrationToken, RepoUrl
@@ -23,14 +23,14 @@ function Write-Log {
     Write-Host $line
 }
 
-Write-Log "=== HV-Lab Bootstrap Phase 4 — GitHub Actions Runner ==="
+Write-Log "=== HV-Lab Bootstrap Phase 4 -- GitHub Actions Runner ==="
 
 $runnerDir = 'C:\actions-runner'
 
-# Idempotency — if runner service already running, done
+# Idempotency -- if runner service already running, done
 $svc = Get-Service -Name 'actions.runner.*' -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($svc -and $svc.Status -eq 'Running') {
-    Write-Log "GitHub Actions runner service already running — Phase 4 skipped."
+    Write-Log "GitHub Actions runner service already running -- Phase 4 skipped."
     exit 0
 }
 
