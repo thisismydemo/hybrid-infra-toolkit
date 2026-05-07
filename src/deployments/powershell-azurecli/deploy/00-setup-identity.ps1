@@ -152,38 +152,83 @@ Set-KVSecret 'hvlab-content-storage-key'    $storageKey           'sthvlabconten
 # SCVMM product key
 Set-KVSecret 'hvlab-scvmm-product-key'      $ScvmmProductKey      'SCVMM 2025 product key'
 
+# Pull GitHub PAT from KV — do not rely on $env:GH_TOKEN being set externally
+Write-Host "  Fetching hvlab-github-pat-full from $KVName..." -ForegroundColor DarkGray
+$ghPat = az keyvault secret show --vault-name $KVName --subscription $TplabsSubId `
+    --name 'hvlab-github-pat-full' --query value -o tsv 2>$null
+if (-not $ghPat) {
+    Write-Warn "hvlab-github-pat-full not found in $KVName. GitHub steps will be skipped."
+} else {
+    $env:GH_TOKEN = $ghPat
+    Write-OK "GitHub PAT loaded from KV ($($ghPat.Length) chars)"
+}
+
 # GitHub runner registration token — generate via API
 Write-Host "  Generating GitHub Actions runner registration token..." -ForegroundColor DarkGray
 $runnerToken = $null
-try {
-    $apiResponse = Invoke-RestMethod `
-        -Uri "https://api.github.com/repos/$GHRepo/actions/runners/registration-token" `
-        -Method POST `
-        -Headers @{ Authorization = "Bearer $($env:GH_TOKEN)"; Accept = "application/vnd.github+json" }
-    $runnerToken = $apiResponse.token
-} catch {
-    Write-Warn "Could not auto-generate runner token (PAT may lack admin:repo scope). Set hvlab-github-runner-token manually."
+if ($ghPat) {
+    try {
+        $apiResponse = Invoke-RestMethod `
+            -Uri "https://api.github.com/repos/$GHRepo/actions/runners/registration-token" `
+            -Method POST `
+            -Headers @{ Authorization = "Bearer $ghPat"; Accept = "application/vnd.github+json" }
+        $runnerToken = $apiResponse.token
+    } catch {
+        Write-Warn "Could not auto-generate runner token. Set hvlab-github-runner-token manually."
+    }
 }
 if ($runnerToken) {
     Set-KVSecret 'hvlab-github-runner-token' $runnerToken 'GitHub Actions self-hosted runner registration token'
 }
 
-# ── 7. GitHub Actions repo secrets ───────────────────────────────────────────
+# ── 7. GitHub Actions repo secrets + OIDC federated credentials ──────────────
 Write-Step 7 $total "GitHub Actions repo secrets (AZURE_CLIENT_ID / TENANT_ID / SUBSCRIPTION_ID)"
+if (-not $ghPat) {
+    Write-Warn "Skipping GitHub secrets — hvlab-github-pat-full not available"
+} else {
+    # Fix OIDC federated credentials to point to this repo (not mms_2026_hybrid_demo)
+    $fedCreds = @(
+        @{ name = 'github-actions-hvlab-main';     subject = "repo:${GHRepo}:ref:refs/heads/main" },
+        @{ name = 'github-actions-hvlab-dispatch'; subject = "repo:${GHRepo}:environment:hvlab" }
+    )
+    $miRg = $ResourceGroup
+    $miName = 'mi-hvlab-deploy-eus-01'
+    $existingCreds = az identity federated-credential list `
+        --identity-name $miName --resource-group $miRg --subscription $DeploySubId `
+        --query "[].name" -o json 2>$null | ConvertFrom-Json
+    foreach ($fc in $fedCreds) {
+        if ($existingCreds -contains $fc.name) {
+            az identity federated-credential update `
+                --identity-name $miName --resource-group $miRg --subscription $DeploySubId `
+                --name $fc.name --issuer 'https://token.actions.githubusercontent.com' `
+                --subject $fc.subject --audiences 'api://AzureADTokenExchange' --output none
+            Write-OK "Federated cred $($fc.name) updated → $($fc.subject)"
+        } else {
+            az identity federated-credential create `
+                --identity-name $miName --resource-group $miRg --subscription $DeploySubId `
+                --name $fc.name --issuer 'https://token.actions.githubusercontent.com' `
+                --subject $fc.subject --audiences 'api://AzureADTokenExchange' --output none
+            Write-OK "Federated cred $($fc.name) created → $($fc.subject)"
+        }
+    }
+}
 $ghErrors = @()
 foreach ($secret in @(
     @{ name = 'AZURE_CLIENT_ID';       value = $clientId    },
     @{ name = 'AZURE_TENANT_ID';       value = $TenantId    },
     @{ name = 'AZURE_SUBSCRIPTION_ID'; value = $DeploySubId }
 )) {
+    if (-not $ghPat) {
+        Write-Warn "Skipping $($secret.name) — GitHub PAT not available"
+        continue
+    }
     $out = gh secret set $secret.name --body $secret.value --repo $GHRepo 2>&1
     if ($LASTEXITCODE -ne 0) { $ghErrors += "$($secret.name): $out" }
     else { Write-OK "$($secret.name) set" }
 }
 if ($ghErrors.Count -gt 0) {
-    Write-Warn "GitHub secret(s) failed — PAT needs 'Secrets: read and write' permission:"
+    Write-Warn "GitHub secret(s) failed — ensure hvlab-github-pat-full has Secrets:write scope:"
     $ghErrors | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
-    Write-Warn "Go to github.com → Settings → Developer settings → Personal access tokens and update GH_TOKEN."
 }
 
 Write-Host @"
