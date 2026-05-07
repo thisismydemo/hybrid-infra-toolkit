@@ -8,15 +8,28 @@
 
 param(
     [string]$WacServer      = 'hvwac01',
-    [string]$PgPassword     = '',   # pulled from KV by workflow before running
+    [string]$PgPassword     = '',   # if empty, fetched from kv-tplabs-platform/hvwac01-pg-password
     [string]$PgUsername     = 'wacadmin',
     [int]   $PgPort         = 5432,
     [int]   $WacPort        = 443,
+    [string]$KVName         = 'kv-tplabs-platform',
+    [string]$KVSubscription = '2caa0b8a-a1d6-4f0c-8c03-861787b8315c',
     [string[]]$ManagedHosts = @('hvnode01','hvnode02','hvnode03','hvnode04','hviscsi01','hvdc01')
 )
 
 $ErrorActionPreference = 'Stop'
 Write-Host "=== Installing WAC Virtualization Mode on $WacServer ===" -ForegroundColor Cyan
+
+# Fetch PgPassword from Key Vault if not supplied
+if (-not $PgPassword) {
+    Write-Host "Fetching WAC PostgreSQL password from Key Vault..."
+    $PgPassword = az keyvault secret show `
+        --vault-name $KVName `
+        --subscription $KVSubscription `
+        --name 'hvwac01-pg-password' `
+        --query value -o tsv
+    if (-not $PgPassword) { throw "Failed to retrieve hvwac01-pg-password from $KVName" }
+}
 
 # Verify WS2025 (will fail on WS2022 — save time, check first)
 $osVersion = Invoke-Command -ComputerName $WacServer -ScriptBlock {

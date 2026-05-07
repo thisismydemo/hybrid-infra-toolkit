@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Create replica DC (hvdc01)"
+      - name: "Create forest root DC (hvdc01 — azrl.mgmt)"
         shell: pwsh
         run: src/deployments/powershell-azurecli/nested-vms/01-create-dc.ps1
 
