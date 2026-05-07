@@ -13,8 +13,8 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$hypervRoot = Join-Path $RepoRoot 'hyperv-cluster-demo'
-$bicepRoot = Join-Path $hypervRoot 'bicep'
+$hypervRoot = $RepoRoot
+$bicepRoot = Join-Path $RepoRoot 'src\deployments\bicep'
 $mainTemplate = Join-Path $bicepRoot 'main.bicep'
 $identityTemplate = Join-Path $bicepRoot 'identity.bicep'
 $paramsFile = Join-Path $bicepRoot 'parameters\tplabs.bicepparam'
