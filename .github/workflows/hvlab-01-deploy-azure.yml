@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - '.github/workflows/hvlab-01-deploy-azure.yml'
+      - 'src/**'
+      - 'configs/**'
   workflow_dispatch:
     inputs:
       location:
