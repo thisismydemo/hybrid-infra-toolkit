@@ -89,7 +89,23 @@ jobs:
             --tags environment=lab workload=hvlab-mms26 owner=kristopherjturner \
                    demoEvent=mms-moa-2026 createdBy=github-actions
 
+      - name: Check if VM already exists
+        id: vm_check
+        run: |
+          VM_STATE=$(az vm show \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "vm-hvlab-host01-eus-01" \
+            --query "provisioningState" -o tsv 2>/dev/null || echo "NotFound")
+          echo "vm_state=$VM_STATE" >> $GITHUB_OUTPUT
+          if [ "$VM_STATE" = "Succeeded" ]; then
+            echo "VM already exists and is provisioned — skipping deploy."
+          else
+            echo "VM not found or not ready (state=$VM_STATE) — will deploy."
+          fi
+
       - name: Validate Bicep
+        if: steps.vm_check.outputs.vm_state != 'Succeeded'
         run: |
           az deployment group validate \
             --subscription "$SUBSCRIPTION_ID" \
@@ -101,6 +117,7 @@ jobs:
 
       - name: Deploy Bicep
         id: deploy
+        if: steps.vm_check.outputs.vm_state != 'Succeeded'
         run: |
           set -euo pipefail
           az deployment group create \
