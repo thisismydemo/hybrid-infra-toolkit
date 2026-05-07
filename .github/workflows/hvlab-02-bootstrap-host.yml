@@ -36,13 +36,12 @@ jobs:
       - name: "Phase 1 — Install Windows features (will reboot if needed)"
         id: phase1
         run: |
-          SCRIPT=$(cat src/deployments/powershell-azurecli/deploy/04-bootstrap-phase1.ps1 | base64 -w 0)
           OUTPUT=$(az vm run-command invoke \
             --subscription "$SUBSCRIPTION_ID" \
             --resource-group "$RESOURCE_GROUP" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts "powershell -EncodedCommand $SCRIPT" \
+            --scripts @src/deployments/powershell-azurecli/deploy/04-bootstrap-phase1.ps1 \
             --output json)
           echo "$OUTPUT"
           if echo "$OUTPUT" | grep -q 'Phase 1 skipped'; then
