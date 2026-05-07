@@ -3,7 +3,9 @@ name: "HVLab 01 — Deploy Azure Infrastructure"
 on:
   push:
     branches:
-      - deploy-trigger
+      - main
+    paths:
+      - '.github/workflows/hvlab-01-deploy-azure.yml'
   workflow_dispatch:
     inputs:
       location:
