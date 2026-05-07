@@ -17,77 +17,71 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Setup - configure WinRM Basic auth and Hyper-V rights"
+      - name: "Setup - verify Start-Process -Credential works"
         shell: powershell
         run: |
-          # Add NETWORK SERVICE to Hyper-V Administrators (takes effect in new sessions)
-          $members = net localgroup "Hyper-V Administrators" 2>$null
-          if ($members -notmatch 'NETWORK SERVICE') {
-            net localgroup "Hyper-V Administrators" "NT AUTHORITY\NETWORK SERVICE" /add 2>&1 | Write-Host
-          }
-          Write-Host "Hyper-V Administrators OK"
-          # Enable PSRemoting and configure Basic auth for lab use
-          Enable-PSRemoting -Force -SkipNetworkProfileCheck -ErrorAction SilentlyContinue | Out-Null
-          winrm set winrm/config/service '@{AllowUnencrypted="true"}' | Out-Null
-          winrm set winrm/config/service/Auth '@{Basic="true"}' | Out-Null
-          winrm set winrm/config/client '@{AllowUnencrypted="true"}' | Out-Null
-          winrm set winrm/config/client/Auth '@{Basic="true"}' | Out-Null
-          Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
-          Write-Host "WinRM Basic auth configured"
-          # Verify - this MUST succeed or the step fails
-          $cred = New-Object System.Management.Automation.PSCredential("Administrator", (ConvertTo-SecureString "HVLab@2026!" -AsPlainText -Force))
-          $test = Invoke-Command -ComputerName 127.0.0.1 -Credential $cred -Authentication Basic `
-            -ScriptBlock { "$env:COMPUTERNAME as $([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)" } -ErrorAction Stop
-          Write-Host "WinRM OK: $test"
+          $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
+          $ts = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\test-id.ps1"
+          '[System.Security.Principal.WindowsIdentity]::GetCurrent().Name' | Set-Content $ts -Encoding UTF8
+          & $helper -ScriptPath $ts -AdminPassword 'HVLab@2026!'
+          Remove-Item $ts -Force -ErrorAction SilentlyContinue
+          if ($LASTEXITCODE -ne 0) { throw "Start-Process -Credential test failed (exit $LASTEXITCODE)" }
+          Write-Host "Start-Process -Credential OK."
 
-      - name: "Create forest root DC (hvdc01 — azrl.mgmt)"
+      - name: "Create forest root DC (hvdc01 - azrl.mgmt)"
         shell: powershell
         run: |
-          $cred = New-Object System.Management.Automation.PSCredential("Administrator", (ConvertTo-SecureString "HVLab@2026!" -AsPlainText -Force))
-          $scriptPath = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\01-create-dc.ps1"
-          Invoke-Command -ComputerName 127.0.0.1 -Credential $cred -Authentication Basic -FilePath $scriptPath -ErrorAction Stop
+          $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
+          $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\01-create-dc.ps1"
+          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: "Create iSCSI target server (hviscsi01)"
         shell: powershell
         run: |
-          $cred = New-Object System.Management.Automation.PSCredential("Administrator", (ConvertTo-SecureString "HVLab@2026!" -AsPlainText -Force))
-          $scriptPath = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\02-create-iscsi.ps1"
-          Invoke-Command -ComputerName 127.0.0.1 -Credential $cred -Authentication Basic -FilePath $scriptPath -ErrorAction Stop
+          $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
+          $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\02-create-iscsi.ps1"
+          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: "Create Hyper-V cluster nodes (hvnode01-04)"
         shell: powershell
         run: |
-          $cred = New-Object System.Management.Automation.PSCredential("Administrator", (ConvertTo-SecureString "HVLab@2026!" -AsPlainText -Force))
-          $scriptPath = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\03-create-cluster-nodes.ps1"
-          Invoke-Command -ComputerName 127.0.0.1 -Credential $cred -Authentication Basic -FilePath $scriptPath -ErrorAction Stop
+          $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
+          $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\03-create-cluster-nodes.ps1"
+          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: "Create WAC vmode server (hvwac01 — WS2025)"
+      - name: "Create WAC vmode server (hvwac01 - WS2025)"
         shell: powershell
         run: |
-          $cred = New-Object System.Management.Automation.PSCredential("Administrator", (ConvertTo-SecureString "HVLab@2026!" -AsPlainText -Force))
-          $scriptPath = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\04-create-wac-vmode.ps1"
-          Invoke-Command -ComputerName 127.0.0.1 -Credential $cred -Authentication Basic -FilePath $scriptPath -ErrorAction Stop
+          $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
+          $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\04-create-wac-vmode.ps1"
+          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: "Create SCVMM server (hvscvmm01)"
         shell: powershell
         run: |
-          $cred = New-Object System.Management.Automation.PSCredential("Administrator", (ConvertTo-SecureString "HVLab@2026!" -AsPlainText -Force))
-          $scriptPath = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\05-create-scvmm.ps1"
-          Invoke-Command -ComputerName 127.0.0.1 -Credential $cred -Authentication Basic -FilePath $scriptPath -ErrorAction Stop
+          $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
+          $script = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\nested-vms\05-create-scvmm.ps1"
+          & $helper -ScriptPath $script -AdminPassword 'HVLab@2026!'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Summary
         shell: powershell
         run: |
-          $cred = New-Object System.Management.Automation.PSCredential("Administrator", (ConvertTo-SecureString "HVLab@2026!" -AsPlainText -Force))
-          $vms = Invoke-Command -ComputerName 127.0.0.1 -Credential $cred -Authentication Basic -ScriptBlock {
-            Get-VM -ErrorAction SilentlyContinue | Select-Object Name, State, @{N='MemoryGB';E={[math]::Round($_.MemoryAssigned/1GB,1)}}, ProcessorCount
-          }
+          $helper = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsAdmin.ps1"
+          $sumScript = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\get-vms-csv.ps1"
+          'Get-VM -EA SilentlyContinue | Select-Object Name,State,ProcessorCount | Export-Csv -Path C:\Windows\Temp\hvlab-vms.csv -NoTypeInformation' | Set-Content $sumScript -Encoding UTF8
+          & $helper -ScriptPath $sumScript -AdminPassword 'HVLab@2026!'
+          Remove-Item $sumScript -Force -ErrorAction SilentlyContinue
+          $vms = if (Test-Path C:\Windows\Temp\hvlab-vms.csv) { Import-Csv C:\Windows\Temp\hvlab-vms.csv; Remove-Item C:\Windows\Temp\hvlab-vms.csv -Force } else { @() }
           $vms | Format-Table | Out-String | Write-Host
           "## Nested VMs Created" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-          "| VM | State | Memory | vCPU |" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-          "|---|---|---|---|" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "| VM | State | vCPU |" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "|---|---|---|" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           foreach ($vm in $vms) {
-            "| $($vm.Name) | $($vm.State) | $($vm.MemoryGB) GB | $($vm.ProcessorCount) |" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            "| $($vm.Name) | $($vm.State) | $($vm.ProcessorCount) |" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           }
-          "`n**Next step:** Run **HVLab 04 - Configure Failover Cluster**" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-
+          "`n**Next:** HVLab 04 - Configure Failover Cluster" | Out-File $env:GITHUB_STEP_SUMMARY -Append
