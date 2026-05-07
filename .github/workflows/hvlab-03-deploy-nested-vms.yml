@@ -44,13 +44,21 @@ jobs:
               Copy-Item $altIso $isoPath -Force
             } else {
               if ($existing) { Remove-Item $isoPath -Force }
-              Write-Host "Downloading WS2025 Evaluation ISO (~5.4 GB) via curl.exe..."
-              $ProgressPreference = 'SilentlyContinue'
-              # curl.exe handles redirects and works from service logon (unlike BITS)
-              $curlArgs = @('-L', '--retry', '3', '--retry-delay', '5', '-o', $isoPath,
-                'https://go.microsoft.com/fwlink/?linkid=2293512')
-              & curl.exe @curlArgs
-              if ($LASTEXITCODE -ne 0) { throw "curl.exe failed with exit code $LASTEXITCODE" }
+              Write-Host "Downloading WS2025.iso from Azure Blob Storage (sthvlabcontent01/isos)..."
+              # Uses the VM's managed identity (mi-hvlab-host01-eus-01) — no credentials needed
+              # Managed identity has Storage Blob Data Reader on the isos container
+              $env:AZURE_DEFAULTS_GROUP = 'rg-hvlab-mms26-eus-01'
+              $dlResult = az storage blob download `
+                --account-name sthvlabcontent01 `
+                --container-name isos `
+                --name WS2025.iso `
+                --file $isoPath `
+                --auth-mode login `
+                --only-show-errors 2>&1
+              if ($LASTEXITCODE -ne 0) {
+                Write-Host "Blob download output: $dlResult"
+                throw "az storage blob download failed (exit $LASTEXITCODE). Ensure WS2025.iso is uploaded to sthvlabcontent01/isos."
+              }
               $sz = [math]::Round((Get-Item $isoPath).Length/1GB, 2)
               Write-Host "WS2025.iso downloaded: $sz GB"
               if ($sz -lt 1) { throw "ISO download appears incomplete ($sz GB)" }

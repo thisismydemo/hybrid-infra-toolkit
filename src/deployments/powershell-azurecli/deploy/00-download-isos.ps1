@@ -1,17 +1,23 @@
 ﻿##############################################################################
-# 00-download-isos.ps1  -- Automated ISO download to S:\HyperVStorage\ISOs\
+# 00-download-isos.ps1  -- ISO provisioning to S:\HyperVStorage\ISOs\
 #
-# Downloads:
-#   - Windows Server 2022 Evaluation (180-day, ISO)
-#   - Windows Server 2025 Evaluation (180-day, ISO)  <- required for WAC vmode
-#   - SQL Server 2022 Developer Edition (ISO)         <- free, for SCVMM
+# Sources:
+#   - Windows Server 2022 Evaluation (180-day, ISO)  -- Microsoft fwlink
+#   - Windows Server 2025 Evaluation (180-day, ISO)  -- Azure Blob Storage
+#   - SQL Server 2022 Developer Edition (ISO)         -- Microsoft fwlink
+#
+# WS2025.iso is sourced from sthvlabcontent01/isos in Azure Blob Storage.
+# The ISO must be uploaded manually once (see docs/02-iso-upload.md).
+# The VM's managed identity (mi-hvlab-host01-eus-01) has Storage Blob Data Reader.
 #
 # Run: BEFORE workflow 03 (nested VM creation). Must have D:\ volume ready.
 # Run from: self-hosted runner on hvlab-host01 (needs S:\HyperVStorage\ISOs\)
 ##############################################################################
 
 param(
-    [string]$ISODir = 'S:\HyperVStorage\ISOs',
+    [string]$ISODir           = 'S:\HyperVStorage\ISOs',
+    [string]$BlobAccount      = 'sthvlabcontent01',
+    [string]$BlobContainer    = 'isos',
     [switch]$SkipWS2022,
     [switch]$SkipWS2025,
     [switch]$SkipSQL
@@ -43,6 +49,29 @@ function Get-FileWithProgress {
     Write-Host "   $DisplayName -- ${sizeMB} MB in $([int]$elapsed.TotalSeconds)s" -ForegroundColor Green
 }
 
+function Get-BlobFile {
+    param([string]$AccountName, [string]$Container, [string]$BlobName, [string]$OutFile, [string]$DisplayName)
+    if (Test-Path $OutFile) {
+        Write-Host "    $DisplayName already exists, skipping." -ForegroundColor DarkGray
+        return
+    }
+    Write-Host "    Downloading $DisplayName from Azure Blob Storage..." -ForegroundColor Cyan
+    $start = Get-Date
+    az storage blob download `
+        --account-name $AccountName `
+        --container-name $Container `
+        --name $BlobName `
+        --file $OutFile `
+        --auth-mode login `
+        --only-show-errors
+    if ($LASTEXITCODE -ne 0) {
+        throw "az storage blob download failed for $BlobName. Ensure the ISO is uploaded to $AccountName/$Container and this machine has Storage Blob Data Reader."
+    }
+    $elapsed = (Get-Date) - $start
+    $sizeMB = [math]::Round((Get-Item $OutFile).Length / 1MB, 0)
+    Write-Host "   $DisplayName -- ${sizeMB} MB in $([int]$elapsed.TotalSeconds)s" -ForegroundColor Green
+}
+
 # -----------------------------------------------------------------------------
 # Windows Server 2022 Evaluation ISO
 # -----------------------------------------------------------------------------
@@ -56,11 +85,13 @@ if (-not $SkipWS2022) {
 
 # -----------------------------------------------------------------------------
 # Windows Server 2025 Evaluation ISO  -- REQUIRED for hvwac01 (WAC vmode)
+# Sourced from Azure Blob Storage: sthvlabcontent01/isos/WS2025.iso
+# Upload once: az storage blob upload --account-name sthvlabcontent01 --container-name isos --name WS2025.iso --file <local-path>
 # -----------------------------------------------------------------------------
 if (-not $SkipWS2025) {
     Write-Host "`n=== Windows Server 2025 Evaluation ISO (required for WAC vmode) ===" -ForegroundColor Yellow
-    $ws2025Uri = 'https://go.microsoft.com/fwlink/?linkid=2293512'
-    Get-FileWithProgress -Uri $ws2025Uri -OutFile "$ISODir\WS2025.iso" -DisplayName 'WS2025 Eval'
+    Get-BlobFile -AccountName $BlobAccount -Container $BlobContainer `
+        -BlobName 'WS2025.iso' -OutFile "$ISODir\WS2025.iso" -DisplayName 'WS2025 Eval'
     Write-Host "  ISO path: $ISODir\WS2025.iso"
 }
 
