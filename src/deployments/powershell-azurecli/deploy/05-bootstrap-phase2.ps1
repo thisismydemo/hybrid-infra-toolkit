@@ -120,9 +120,17 @@ $mgmtAdapter = Get-NetAdapter | Where-Object {
 } | Sort-Object -Property LinkSpeed -Descending | Select-Object -First 1
 
 Write-Log "Binding vSwitch-External to adapter: $($mgmtAdapter.Name)"
-New-VMSwitch -Name 'vSwitch-External' -NetAdapterName $mgmtAdapter.Name `
-    -AllowManagementOS $true `
-    -ErrorAction SilentlyContinue | Out-Null
+if (-not (Get-VMSwitch -Name 'vSwitch-External' -ErrorAction SilentlyContinue)) {
+    try {
+        New-VMSwitch -Name 'vSwitch-External' -NetAdapterName $mgmtAdapter.Name `
+            -AllowManagementOS $true | Out-Null
+        Write-Log "Created external switch: vSwitch-External"
+    } catch {
+        Write-Log "vSwitch-External creation threw exception: $_" 'WARN'
+    }
+} else {
+    Write-Log "vSwitch-External already exists -- skipping."
+}
 
 $internalSwitches = @(
     @{ Name = 'vSwitch-Mgmt'; IP = '172.16.10.1'; Prefix = 24 },
@@ -133,22 +141,32 @@ $internalSwitches = @(
 )
 
 foreach ($sw in $internalSwitches) {
-    New-VMSwitch -Name $sw.Name -SwitchType Internal -ErrorAction SilentlyContinue | Out-Null
+    if (-not (Get-VMSwitch -Name $sw.Name -ErrorAction SilentlyContinue)) {
+        try {
+            New-VMSwitch -Name $sw.Name -SwitchType Internal | Out-Null
+        } catch {
+            Write-Log "Switch $($sw.Name) creation threw exception: $_" 'WARN'
+        }
+    }
     $adapter = Get-NetAdapter | Where-Object { $_.Name -like "*$($sw.Name)*" }
     if ($adapter) {
         New-NetIPAddress -InterfaceAlias $adapter.Name -IPAddress $sw.IP -PrefixLength $sw.Prefix `
             -ErrorAction SilentlyContinue | Out-Null
     }
-    Write-Log "Created internal switch: $($sw.Name) ($($sw.IP)/$($sw.Prefix))"
+    Write-Log "Configured internal switch: $($sw.Name) ($($sw.IP)/$($sw.Prefix))"
 }
 
 # -----------------------------------------------------------------------------
 # 3. WinNAT
 # -----------------------------------------------------------------------------
 Write-Log "Configuring WinNAT ($NatSubnet)..."
-Get-NetNat | Remove-NetNat -Confirm:$false -ErrorAction SilentlyContinue
-New-NetNat -Name $NatName -InternalIPInterfaceAddressPrefix $NatSubnet
-Write-Log "WinNAT '$NatName' created for $NatSubnet"
+Get-NetNat -ErrorAction SilentlyContinue | Remove-NetNat -Confirm:$false -ErrorAction SilentlyContinue
+try {
+    New-NetNat -Name $NatName -InternalIPInterfaceAddressPrefix $NatSubnet | Out-Null
+    Write-Log "WinNAT '$NatName' created for $NatSubnet"
+} catch {
+    Write-Log "WinNAT creation threw exception: $_ -- may already exist" 'WARN'
+}
 
 # -----------------------------------------------------------------------------
 # 4. Secondary IP forwarding notes
