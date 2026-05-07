@@ -1,2 +1,2 @@
-triggered: 2026-05-07 15:01:34
-retrigger: hvdc01 cleaned up, fresh run
+triggered: 2026-05-07 15:04:34
+retrigger: Defender exclusions added for D:\HyperVStorage + .vhdx
