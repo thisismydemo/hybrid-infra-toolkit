@@ -122,6 +122,18 @@ jobs:
       # ── Phase 4: Install GitHub Actions self-hosted runner ────────────────
       - name: "Phase 4 — Install GitHub Actions self-hosted runner"
         run: |
+          EXISTING_RUNNER=$(az vm run-command invoke \
+            --subscription "$SUBSCRIPTION_ID" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts "if (Get-Service -Name 'actions.runner.*' -ErrorAction SilentlyContinue) { Write-Host 'RUNNER_PRESENT' }" \
+            --query "value[0].message" -o tsv 2>/dev/null || true)
+          if echo "$EXISTING_RUNNER" | grep -q 'RUNNER_PRESENT'; then
+            echo "Runner already installed on VM — skipping registration."
+            exit 0
+          fi
+
           # Try repo secret PAT first, then Key Vault PAT, then fall back to GITHUB_TOKEN.
           PAT="$GH_PAT"
           if [ -z "$PAT" ]; then
