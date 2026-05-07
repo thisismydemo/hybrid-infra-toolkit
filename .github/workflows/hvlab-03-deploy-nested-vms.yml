@@ -80,12 +80,10 @@ jobs:
         run: |
           $invoker = "$env:GITHUB_WORKSPACE\src\deployments\powershell-azurecli\common\Invoke-AsSystem.ps1"
           $summaryScript = "C:\Temp\hvlab-summary.ps1"
-          Set-Content $summaryScript @'
-$vms = Get-VM | Select-Object Name, State, @{N='MemoryGB';E={[math]::Round($_.MemoryAssigned/1GB,1)}}, ProcessorCount
-$vms | Format-Table | Out-String | Write-Host
-'@
+          $content = '$vms = Get-VM | Select-Object Name, State, @{N="MemoryGB";E={[math]::Round($_.MemoryAssigned/1GB,1)}}, ProcessorCount; $vms | Format-Table | Out-String | Write-Host'
+          Set-Content -Path $summaryScript -Value $content
           & $invoker -ScriptPath $summaryScript -LogFile "C:\Temp\hvlab-summary.log" -TaskName "HVLab-Summary" -TimeoutMinutes 5
           "## Nested VMs Created" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           "| VM | State | Memory | vCPU |" | Out-File $env:GITHUB_STEP_SUMMARY -Append
           "|---|---|---|---|" | Out-File $env:GITHUB_STEP_SUMMARY -Append
-          "`n**Next step:** Run **HVLab 04 — Configure Failover Cluster**" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          "`n**Next step:** Run **HVLab 04 - Configure Failover Cluster**" | Out-File $env:GITHUB_STEP_SUMMARY -Append
