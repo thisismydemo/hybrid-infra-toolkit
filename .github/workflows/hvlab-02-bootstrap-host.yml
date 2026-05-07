@@ -90,38 +90,25 @@ jobs:
           echo "$PEM" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
 
-      # ── Get GitHub runner token via GitHub App JWT (built from KV-stored PEM) ──
+      # ── Get GitHub runner token via GitHub App JWT (pure bash + openssl) ──
       - name: "Generate GitHub runner registration token"
         id: runner-token
         run: |
           set -euo pipefail
           APP_ID="3454084"
 
-          # Fetch PEM from Key Vault (accessible via OIDC)
-          PEM=$(az keyvault secret show \
-            --vault-name "$KV_NAME" \
-            --subscription "$KV_SUBSCRIPTION" \
-            --name "hvlab-github-app-pem" \
-            --query value -o tsv)
+          # Write PEM to temp file (avoids shell quoting issues)
+          PEM_FILE=$(mktemp)
+          echo "$APP_PEM" > "$PEM_FILE"
 
-          # Build JWT using Python (available on ubuntu-latest)
-          JWT=$(python3 - <<'PYEOF'
-import sys, time, base64, json, os
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
-
-pem = os.environ["APP_PEM"].encode()
-app_id = os.environ["APP_ID"]
-
-key = serialization.load_pem_private_key(pem, password=None)
-now = int(time.time())
-header = base64.urlsafe_b64encode(json.dumps({"alg":"RS256","typ":"JWT"}).encode()).rstrip(b"=").decode()
-payload = base64.urlsafe_b64encode(json.dumps({"iat": now-60, "exp": now+540, "iss": app_id}).encode()).rstrip(b"=").decode()
-msg = f"{header}.{payload}".encode()
-sig = base64.urlsafe_b64encode(key.sign(msg, padding.PKCS1v15(), hashes.SHA256())).rstrip(b"=").decode()
-print(f"{header}.{payload}.{sig}")
-PYEOF
-          )
+          # Build JWT: base64url(header).base64url(payload).base64url(sig)
+          b64url() { base64 -w0 | tr '+/' '-_' | tr -d '='; }
+          NOW=$(date +%s)
+          HEADER=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
+          PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$((NOW-60))" "$((NOW+540))" "$APP_ID" | b64url)
+          SIG=$(printf '%s' "${HEADER}.${PAYLOAD}" | openssl dgst -sha256 -sign "$PEM_FILE" | b64url)
+          JWT="${HEADER}.${PAYLOAD}.${SIG}"
+          rm -f "$PEM_FILE"
 
           # Get installation ID for thisismydemo org
           INSTALL_ID=$(curl -s \
@@ -151,7 +138,6 @@ PYEOF
           echo "runner_token=$TOKEN" >> $GITHUB_OUTPUT
         env:
           APP_PEM: ${{ steps.fetch-pem.outputs.pem }}
-          APP_ID: "3454084"
 
       # ── Install GitHub runner ───────────────────────────────────────────────
       - name: "Install GitHub Actions self-hosted runner"
