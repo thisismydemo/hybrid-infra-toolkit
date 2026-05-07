@@ -44,6 +44,30 @@ function New-SecureStringValue {
     return $secureString
 }
 
+# Run a scriptblock in a background job with a hard timeout.
+# Returns job output, or $null if it timed out or threw.
+function Invoke-WithTimeout {
+    param(
+        [scriptblock]$ScriptBlock,
+        [object[]]$ArgumentList = @(),
+        [int]$TimeoutSeconds = 60,
+        [string]$Description = 'operation'
+    )
+    $job = Start-Job -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList
+    if (Wait-Job $job -Timeout $TimeoutSeconds) {
+        try   { $result = Receive-Job $job }
+        catch { $result = $null }
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
+        return $result
+    }
+    else {
+        Write-Log "$Description timed out after ${TimeoutSeconds}s -- continuing" 'WARN'
+        Stop-Job  $job -ErrorAction SilentlyContinue
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
+        return $null
+    }
+}
+
 Write-Log "=== HV-Lab Bootstrap Phase 2 -- Hyper-V Configuration ==="
 
 # Idempotency check -- skip if Phase 2 already completed
@@ -115,38 +139,79 @@ Write-Log "HyperV storage directories created on $($VolumeLetter):\"
 # -----------------------------------------------------------------------------
 Write-Log "Creating Hyper-V virtual switches..."
 
+# Wait for VMMS to be responsive -- Get-VMSwitch and New-VMSwitch can hang
+# indefinitely if the Hyper-V management service is not fully initialized.
+Write-Log "Waiting for VMMS to become responsive..."
+$vmmsReady = $false
+for ($attempt = 1; $attempt -le 12; $attempt++) {
+    $svc = Get-Service -Name vmms -ErrorAction SilentlyContinue
+    if ($svc -and $svc.Status -eq 'Running') {
+        # Use a sentinel return to distinguish "VMMS responded (empty list)" from "timed out"
+        $probeJob = Start-Job -ScriptBlock {
+            Get-VMSwitch -ErrorAction SilentlyContinue | Out-Null
+            return 'VMMS_OK'
+        }
+        if (Wait-Job $probeJob -Timeout 15) {
+            Remove-Job $probeJob -Force -ErrorAction SilentlyContinue
+            $vmmsReady = $true
+            Write-Log "VMMS responding (attempt $attempt)."
+            break
+        }
+        Stop-Job  $probeJob -ErrorAction SilentlyContinue
+        Remove-Job $probeJob -Force -ErrorAction SilentlyContinue
+    }
+    Write-Log "VMMS not ready yet (attempt $attempt/12) -- waiting 10s..." 'WARN'
+    Start-Sleep -Seconds 10
+}
+if (-not $vmmsReady) {
+    Write-Log "VMMS did not respond after 12 attempts -- attempting service restart..." 'WARN'
+    Restart-Service -Name vmms -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 30
+}
+
 $mgmtAdapter = Get-NetAdapter | Where-Object {
     $_.Status -eq 'Up' -and $_.InterfaceDescription -notlike '*Hyper-V*'
 } | Sort-Object -Property LinkSpeed -Descending | Select-Object -First 1
 
 Write-Log "Binding vSwitch-External to adapter: $($mgmtAdapter.Name)"
-if (-not (Get-VMSwitch -Name 'vSwitch-External' -ErrorAction SilentlyContinue)) {
-    try {
-        New-VMSwitch -Name 'vSwitch-External' -NetAdapterName $mgmtAdapter.Name `
-            -AllowManagementOS $true | Out-Null
-        Write-Log "Created external switch: vSwitch-External"
-    } catch {
-        Write-Log "vSwitch-External creation threw exception: $_" 'WARN'
-    }
-} else {
+$extExists = Invoke-WithTimeout `
+    -ScriptBlock    { param($n) Get-VMSwitch -Name $n -ErrorAction SilentlyContinue } `
+    -ArgumentList   'vSwitch-External' `
+    -TimeoutSeconds 20 `
+    -Description    'Get-VMSwitch vSwitch-External'
+if (-not $extExists) {
+    Write-Log "Creating vSwitch-External (or existence check timed out -- attempting create)..."
+    Invoke-WithTimeout `
+        -ScriptBlock    { param($name, $nic) New-VMSwitch -Name $name -NetAdapterName $nic -AllowManagementOS $true | Out-Null } `
+        -ArgumentList   'vSwitch-External', $mgmtAdapter.Name `
+        -TimeoutSeconds 120 `
+        -Description    'New-VMSwitch vSwitch-External'
+    Write-Log "vSwitch-External create attempt finished (see WARN above if it timed out)."
+}
+else {
     Write-Log "vSwitch-External already exists -- skipping."
 }
 
 $internalSwitches = @(
-    @{ Name = 'vSwitch-Mgmt'; IP = '172.16.10.1'; Prefix = 24 },
+    @{ Name = 'vSwitch-Mgmt';      IP = '172.16.10.1'; Prefix = 24 },
     @{ Name = 'vSwitch-Migration'; IP = '172.16.20.1'; Prefix = 24 },
-    @{ Name = 'vSwitch-Storage'; IP = '172.16.30.1'; Prefix = 24 },
+    @{ Name = 'vSwitch-Storage';   IP = '172.16.30.1'; Prefix = 24 },
     @{ Name = 'vSwitch-Heartbeat'; IP = '172.16.40.1'; Prefix = 24 },
-    @{ Name = 'vSwitch-Workload'; IP = '172.16.50.1'; Prefix = 24 }
+    @{ Name = 'vSwitch-Workload';  IP = '172.16.50.1'; Prefix = 24 }
 )
 
 foreach ($sw in $internalSwitches) {
-    if (-not (Get-VMSwitch -Name $sw.Name -ErrorAction SilentlyContinue)) {
-        try {
-            New-VMSwitch -Name $sw.Name -SwitchType Internal | Out-Null
-        } catch {
-            Write-Log "Switch $($sw.Name) creation threw exception: $_" 'WARN'
-        }
+    $swExists = Invoke-WithTimeout `
+        -ScriptBlock    { param($n) Get-VMSwitch -Name $n -ErrorAction SilentlyContinue } `
+        -ArgumentList   $sw.Name `
+        -TimeoutSeconds 20 `
+        -Description    "Get-VMSwitch $($sw.Name)"
+    if (-not $swExists) {
+        Invoke-WithTimeout `
+            -ScriptBlock    { param($n) New-VMSwitch -Name $n -SwitchType Internal | Out-Null } `
+            -ArgumentList   $sw.Name `
+            -TimeoutSeconds 60 `
+            -Description    "New-VMSwitch $($sw.Name)"
     }
     $adapter = Get-NetAdapter | Where-Object { $_.Name -like "*$($sw.Name)*" }
     if ($adapter) {
@@ -164,7 +229,8 @@ Get-NetNat -ErrorAction SilentlyContinue | Remove-NetNat -Confirm:$false -ErrorA
 try {
     New-NetNat -Name $NatName -InternalIPInterfaceAddressPrefix $NatSubnet | Out-Null
     Write-Log "WinNAT '$NatName' created for $NatSubnet"
-} catch {
+}
+catch {
     Write-Log "WinNAT creation threw exception: $_ -- may already exist" 'WARN'
 }
 
