@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/hvlab-00-preflight.yml'
       - '.github/workflows/hvlab-01-deploy-azure.yml'
+      - '.github/workflows/hvlab-02-bootstrap-host.yml'
       - 'src/**'
       - 'configs/**'
   workflow_dispatch:
