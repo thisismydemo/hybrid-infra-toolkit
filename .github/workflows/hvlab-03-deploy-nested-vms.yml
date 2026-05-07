@@ -19,22 +19,32 @@ jobs:
 
       - name: "Create forest root DC (hvdc01 — azrl.mgmt)"
         shell: powershell
+        env:
+          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
         run: src/deployments/powershell-azurecli/nested-vms/01-create-dc.ps1
 
       - name: "Create iSCSI target server (hviscsi01)"
         shell: powershell
+        env:
+          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
         run: src/deployments/powershell-azurecli/nested-vms/02-create-iscsi.ps1
 
       - name: "Create Hyper-V cluster nodes (hvnode01-04)"
         shell: powershell
+        env:
+          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
         run: src/deployments/powershell-azurecli/nested-vms/03-create-cluster-nodes.ps1
 
       - name: "Create WAC vmode server (hvwac01 — WS2025)"
         shell: powershell
+        env:
+          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
         run: src/deployments/powershell-azurecli/nested-vms/04-create-wac-vmode.ps1
 
       - name: "Create SCVMM server (hvscvmm01)"
         shell: powershell
+        env:
+          HVLAB_BOOTSTRAP_PASSWORD: ${{ secrets.HVLAB_BOOTSTRAP_PASSWORD }}
         run: src/deployments/powershell-azurecli/nested-vms/05-create-scvmm.ps1
 
       - name: Summary

@@ -31,15 +31,13 @@ function New-HVLabBootstrapCredential {
         [string]$VaultName = '',
         [string]$SubscriptionId = ''
     )
-    if (-not $SecretValue -and $VaultName) {
-        $SecretValue = az keyvault secret show `
-            --vault-name $VaultName `
-            --subscription $SubscriptionId `
-            --name 'hvlab-bootstrap-password' `
-            --query value -o tsv 2>$null
-    }
+    # Use env var HVLAB_BOOTSTRAP_PASSWORD if no value passed directly
     if (-not $SecretValue) {
-        throw "Bootstrap password not found. Pass -BootstrapPassword or pre-stage 'hvlab-bootstrap-password' in Key Vault '$VaultName'."
+        $SecretValue = $env:HVLAB_BOOTSTRAP_PASSWORD
+    }
+    # Lab default fallback - non-production lab environment only
+    if (-not $SecretValue) {
+        $SecretValue = 'HVLab@2026!'
     }
     $secure = ConvertTo-SecureString $SecretValue -AsPlainText -Force
     return New-Object System.Management.Automation.PSCredential('Administrator', $secure)
