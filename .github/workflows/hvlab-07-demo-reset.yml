@@ -21,7 +21,7 @@ on:
 jobs:
   demo-reset:
     name: "Restore checkpoint: ${{ github.event.inputs.checkpoint_name }}"
-    runs-on: [self-hosted, hvlab-host]
+    runs-on: [self-hosted, hvlab-host01]
     steps:
       - uses: actions/checkout@v4
 

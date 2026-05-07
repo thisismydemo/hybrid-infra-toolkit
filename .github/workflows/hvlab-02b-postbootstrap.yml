@@ -15,7 +15,7 @@ jobs:
   post-bootstrap:
     name: Post-Bootstrap (ISOs + Arc)
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: [self-hosted, hvlab-host]
+    runs-on: [self-hosted, hvlab-host01]
     permissions:
       contents: read
     steps:

@@ -10,7 +10,7 @@ jobs:
   configure-wac-vmode:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     name: Install and configure WAC vmode on hvwac01
-    runs-on: [self-hosted, hvlab-host]
+    runs-on: [self-hosted, hvlab-host01]
     steps:
       - uses: actions/checkout@v4
 
