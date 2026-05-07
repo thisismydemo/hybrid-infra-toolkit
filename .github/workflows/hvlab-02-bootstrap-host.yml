@@ -17,7 +17,6 @@ env:
 permissions:
   id-token: write
   contents: read
-  administration: write
 
 jobs:
   bootstrap:
@@ -76,16 +75,52 @@ jobs:
       - name: "Wait for host services to settle"
         run: sleep 120
 
-      # ── Get GitHub runner registration token via GITHUB_TOKEN ────────────
+      # ── Get GitHub runner registration token via GitHub App JWT ───────────
       - name: "Generate GitHub runner registration token"
         id: runner-token
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KV_NAME: ${{ env.KV_NAME }}
+          KV_SUBSCRIPTION: ${{ env.KV_SUBSCRIPTION }}
         run: |
           set -euo pipefail
-          TOKEN=$(gh api -X POST \
-            /repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token \
-            --jq .token)
+          APP_ID=$(az keyvault secret show --vault-name "$KV_NAME" --subscription "$KV_SUBSCRIPTION" \
+            --name "hvlab-github-app-id" --query value -o tsv)
+          PEM_FILE=$(mktemp)
+          az keyvault secret download --vault-name "$KV_NAME" --subscription "$KV_SUBSCRIPTION" \
+            --name "hvlab-github-app-pem" --file "$PEM_FILE" --encoding ascii --overwrite
+          sed -i 's/\\n/\n/g; s/\r//' "$PEM_FILE"
+
+          b64url() { base64 -w0 | tr '+/' '-_' | tr -d '='; }
+          NOW=$(date +%s)
+          HEADER=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
+          PAYLOAD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$((NOW-60))" "$((NOW+540))" "$APP_ID" | b64url)
+          SIG=$(printf '%s' "${HEADER}.${PAYLOAD}" | openssl dgst -sha256 -sign "$PEM_FILE" | b64url)
+          JWT="${HEADER}.${PAYLOAD}.${SIG}"
+          rm -f "$PEM_FILE"
+
+          INSTALL_ID=$(curl -sf -H "Authorization: Bearer $JWT" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/app/installations | \
+            jq -r '[.[] | select(.account.login == "thisismydemo")][0].id')
+          if [ -z "$INSTALL_ID" ] || [ "$INSTALL_ID" = "null" ]; then
+            echo "ERROR: GitHub App not installed on thisismydemo org. Install at: https://github.com/settings/apps/turner-github-app/installations"
+            exit 1
+          fi
+
+          INSTALL_TOKEN=$(curl -sf -X POST \
+            -H "Authorization: Bearer $JWT" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/app/installations/${INSTALL_ID}/access_tokens" | \
+            jq -r .token)
+
+          TOKEN=$(curl -sf -X POST \
+            -H "Authorization: token $INSTALL_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/thisismydemo/hybrid-infra-toolkit/actions/runners/registration-token | \
+            jq -r .token)
           if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
             echo "ERROR: Failed to obtain runner registration token"
             exit 1
